@@ -40,7 +40,8 @@ enum Kind {
     DEC,      // function declaration
     ARRAY,
     TYPE_INT,
-    COMMA
+    COMMA,
+    PRINTARRAY
 };
 
 /* information about a token */
@@ -102,6 +103,16 @@ uint64_t get(char *id) {
         current = current->children[pos];
     }
     return current->data;
+}
+
+int* getArray(char *id) {
+    if (!inSymbolTable(id)) return 0;
+    struct Node* current = root;
+    for (int i = 0; i < strlen(id); i++) {
+        int pos = getAlNumPos(id[i]);
+        current = current->children[pos];
+    }
+    return current->array;
 }
 
 void setArray(char *id, int* array) {
@@ -236,6 +247,11 @@ void setCurrentToken(void) {
              prog[cursor + 3] == 'n' && prog[cursor + 4] == 't' && !isalnum(prog[cursor + 5])) {
         current.kind = PRINT;
         current.length = 5;
+    }
+    else if (cursor + 10 < len && prog[cursor] == 'p' && prog[cursor + 1] == 'r' && prog[cursor + 2] == 'i' &&
+             prog[cursor + 3] == 'n' && prog[cursor + 4] == 't' && prog[cursor + 5] == 'a' && prog[cursor + 6] == 'r' && prog[cursor + 7] == 'r' && prog[cursor + 8] == 'a' && prog[cursor + 9] == 'y' && !isalnum(prog[cursor + 10])) {
+        current.kind = PRINTARRAY;
+        current.length = 10;
     }
     else if (cursor + 5 < len && prog[cursor] == 'w' && prog[cursor + 1] == 'h' && prog[cursor + 2] == 'i' &&
              prog[cursor + 3] == 'l' && prog[cursor + 4] == 'e' && !isalnum(prog[cursor + 5])) {
@@ -467,6 +483,19 @@ uint64_t statement(int doit) {
             moveTokenPtrToIndex(returnIndex);
             return 1;
         }
+        case PRINTARRAY: {
+            consume();
+            if (doit) {
+                int* arrayPtr = getArray(getId());
+                int sizeOfArray = sizeof arrayPtr / sizeof *(arrayPtr);
+                for (int i = 0; i < sizeOfArray; i++) {
+                    printf("%d", arrayPtr[i]);
+                }
+                consume();
+            }
+            else consume();
+            return 1;
+        }
         case PRINT: {
             consume();
             if (doit)
@@ -576,6 +605,32 @@ void pretokenize(void) {
     while (tail->token->kind != END);
 }
 
+char* stringifyKind(enum Kind kind) {
+    switch (kind) {
+        case END: return "end";
+        case ELSE: return "else";
+        case EQ: return "eq";
+        case EQEQ: return "eqeq";
+        case ID: return "id";
+        case IF: return "if";
+        case INT: return "int";
+        case LBRACE: return "lbrace";
+        case LEFT: return "left";
+        case MUL: return "Mul";
+        case NONE: return "none";
+        case PLUS: return "plus";
+        case PRINT: return "print";
+        case RBRACE: return "rbrace";
+        case RIGHT: return "right";
+        case WHILE: return "while";
+        case FUN: return "fun";
+        case DEC: return "dec";
+        case ARRAY: return "array";
+        case TYPE_INT: return "type_int";
+        case COMMA: return "comma";
+    }
+}
+
 int main(int argc, char* argv[]) {
     increaseStackSize();
     readFile(argc, argv);
@@ -584,6 +639,12 @@ int main(int argc, char* argv[]) {
     root = newNode();
 
     pretokenize();
+
+    do {
+        printf("%s\n", stringifyKind(tokenPtr->token->kind));
+        consume();
+    }
+    while (tokenPtr->token->kind != END);
 
     interpret(prog);
     return 0;
