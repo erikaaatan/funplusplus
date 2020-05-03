@@ -41,7 +41,8 @@ enum Kind {
     ARRAY,
     TYPE_INT,
     COMMA,
-    PRINTARRAY
+    PRINTARRAY,
+    ARRAYLIST
 };
 
 /* information about a token */
@@ -259,6 +260,12 @@ void setCurrentToken(void) {
              prog[cursor + 3] == 'l' && prog[cursor + 4] == 'e' && !isalnum(prog[cursor + 5])) {
         current.kind = WHILE;
         current.length = 5;
+    }
+    else if (cursor + 9 < len && prog[cursor] == 'a' && prog[cursor + 1] == 'r' && prog[cursor + 2] == 'r' &&
+            prog[cursor + 3] == 'a' && prog[cursor + 4] == 'y' && prog[cursor + 5] == 'l' && prog[cursor + 6] == 'i' &&
+            prog[cursor + 7] == 's' && prog[cursor + 8] == 't' && !isalnum(prog[cursor + 9])) {
+                current.kind = ARRAYLIST;
+                current.length = 9;
     }
     else {
         // it's an identifier or function
@@ -645,6 +652,7 @@ char* stringifyKind(enum Kind kind) {
         case ARRAY: return "array";
         case TYPE_INT: return "type_int";
         case COMMA: return "comma";
+        case ARRAYLIST: return "arraylist";
     }
 }
 
@@ -657,15 +665,15 @@ int main(int argc, char* argv[]) {
 
     pretokenize();
 
-    /*
+    
     do {
         printf("%s\n", stringifyKind(tokenPtr->token->kind));
         consume();
     }
     while (tokenPtr->token->kind != END);
-    */
+    
 
-    interpret(prog);
+    //interpret(prog);
     return 0;
 }
 
