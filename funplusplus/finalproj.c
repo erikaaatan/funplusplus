@@ -41,7 +41,9 @@ enum Kind {
     ARRAY,
     TYPE_INT,
     COMMA,
-    PRINTARRAY
+    PRINTARRAY,
+    LBRACKET, // [
+    RBRACKET  // ]
 };
 
 /* information about a token */
@@ -56,6 +58,7 @@ struct Token {
 };
 
 struct Node {
+    enum Kind kind;
     uint64_t data;
     int* array;
     int numElements;
@@ -116,6 +119,12 @@ struct Node* getNode(char *id) {
     return current;
 }
 
+void setArrayAtIndex(char *id, uint64_t value, int index) {
+    struct Node* symbolTableNode = getNode(id);
+    int* array = symbolTableNode->array;
+    array[index] = value;
+}
+
 void setArray(char *id, int* array, int numElements) {
     struct Node* current = root;
     for (int i = 0; i < strlen(id); i++) {
@@ -128,6 +137,7 @@ void setArray(char *id, int* array, int numElements) {
     current->array = array;
     current->end = 1;
     current->numElements = numElements;
+    current->kind = ARRAY;
 }
 
 void set(char *id, uint64_t value) {
@@ -141,6 +151,7 @@ void set(char *id, uint64_t value) {
     }
     current->data = value;
     current->end = 1;
+    current->kind = INT;
 }
 
 /* The current token */
@@ -201,6 +212,14 @@ void setCurrentToken(void) {
     }
     else if (prog[cursor] == ',') {
         current.kind = COMMA;
+        current.length = 1;
+    }
+    else if (prog[cursor] == '[') {
+        current.kind = LBRACKET;
+        current.length = 1;
+    }
+    else if (prog[cursor] == ']') {
+        current.kind = RBRACKET;
         current.length = 1;
     }
     else if (isdigit(prog[cursor])) {
@@ -409,27 +428,44 @@ uint64_t statement(int doit) {
         case ID: {
             char *id = getId();
             consume();
-            if (peek() != EQ)
-                error();
-            consume();
-            if (peek() == ARRAY) {
+            if (peek() == LBRACKET) {
+                // array indexing
                 consume();
-                if (peek() == TYPE_INT) {
-                    consume();
-                    int numElements = tokenPtr->token->value;
-                    int* newArray = (int*) malloc(numElements * sizeof(int));
-                    consume();
-                    for (int i = 0; i < numElements; i++) {
-                        newArray[i] = tokenPtr->token->value;
-                        consume();
-                        if (peek() == COMMA) consume();
-                    }
-                    if (doit) setArray(id, newArray, numElements); 
-                }
+                if (peek() != INT) error();
+                int index = tokenPtr->token->value;
+                consume();
+                if (peek() != RBRACKET) error();
+                consume();
+
+                if (peek() != EQ) error();
+                consume();
+
+                uint64_t v = expression();
+                if (doit) setArrayAtIndex(id, v, index);
             }
             else {
-                uint64_t v = expression();
-                if (doit) set(id, v);
+                if (peek() != EQ) error();
+
+                consume();
+                if (peek() == ARRAY) {
+                    consume();
+                    if (peek() == TYPE_INT) {
+                        consume();
+                        int numElements = tokenPtr->token->value;
+                        int* newArray = (int*) malloc(numElements * sizeof(int));
+                        consume();
+                        for (int i = 0; i < numElements; i++) {
+                            newArray[i] = tokenPtr->token->value;
+                            consume();
+                            if (peek() == COMMA) consume();
+                        }
+                        if (doit) setArray(id, newArray, numElements); 
+                    }
+                }
+                else {
+                    uint64_t v = expression();
+                    if (doit) set(id, v);
+                }
             }
             return 1;
         }
@@ -485,39 +521,41 @@ uint64_t statement(int doit) {
             moveTokenPtrToIndex(returnIndex);
             return 1;
         }
-        case PRINTARRAY: {
-            consume();
-            if (doit) {
-                char* id = getId();
-                struct Node* symbolTableNode = getNode(id);
-                int* arrayPtr = symbolTableNode->array; 
-                int sizeOfArray = symbolTableNode->numElements;
-
-                int formatStrSize = sizeOfArray + (sizeOfArray - 1) + 3; // size, commas, brackets, end
-                char formatStr[formatStrSize];
-                int index = 0;
-                for (int i = 0; i < formatStrSize; i++) {
-                    if (i == 0) formatStr[i] = '{';
-                    else if (i == formatStrSize - 2) formatStr[i] = '}';
-                    else if (i == formatStrSize - 1) formatStr[i] = '\0';
-                    else if (i % 2 == 0) formatStr[i] = ' ';
-                    else {
-                        formatStr[i] = arrayPtr[index] + '0';
-                        index++;
-                    }
-                }               
-                printf("%s\n", formatStr);
-                
-                consume();
-            }
-            else consume();
-            return 1;
-        }
         case PRINT: {
             consume();
-            if (doit)
-                printf("%"PRIu64"\n",expression());
-            else expression();
+            if (doit) {
+                if (peek() != ID) printf("%"PRIu64"\n",expression());
+                else {
+                    char* id = getId();
+                    struct Node* symbolTableNode = getNode(id);
+                    if (symbolTableNode->kind == INT) printf("%ld\n", get(id));
+                    else {
+                        // it is an array
+                        int* arrayPtr = symbolTableNode->array; 
+                        int sizeOfArray = symbolTableNode->numElements;
+
+                        int formatStrSize = sizeOfArray + (sizeOfArray - 1) + 3; // size, commas, brackets, end
+                        char formatStr[formatStrSize];
+                        int index = 0;
+                        for (int i = 0; i < formatStrSize; i++) {
+                            if (i == 0) formatStr[i] = '{';
+                            else if (i == formatStrSize - 2) formatStr[i] = '}';
+                            else if (i == formatStrSize - 1) formatStr[i] = '\0';
+                            else if (i % 2 == 0) formatStr[i] = ' ';
+                            else {
+                                formatStr[i] = arrayPtr[index] + '0';
+                                index++;
+                            }
+                        }               
+                        printf("%s\n", formatStr);
+                        consume();
+                    }
+                }
+            }
+            else {
+                if (peek() == ID && getNode(getId())->kind == ARRAY) consume();
+                else expression();
+            }
             return 1;
         }
         default:
