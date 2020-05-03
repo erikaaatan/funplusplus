@@ -41,7 +41,9 @@ enum Kind {
     ARRAY,
     TYPE_INT,
     COMMA,
-    PRINTARRAY
+    PRINTARRAY,
+    ARRAYLIST,
+    INSERT
 };
 
 /* information about a token */
@@ -55,9 +57,60 @@ struct Token {
     int index;
 };
 
+// ----------- ArrayList Struct and Functions ---------------------------
+typedef struct ArrayList {
+    uint64_t size;
+    uint64_t arraySize;
+    uint64_t *array;
+} ArrayList;
+ 
+ struct ArrayList* new_ArrayList(void) {
+     ArrayList * new = (ArrayList *) malloc(sizeof(ArrayList));
+     return new;
+ }
+
+uint64_t* resize(uint64_t* array, uint64_t oldSize);
+void printArray(uint64_t* array, uint64_t size);
+
+ void insertArrayList(ArrayList* list, uint64_t item)
+ {
+     if (list->size >= (list->arraySize) / 2)
+     {
+         list->array = resize(list->array, list->size);
+         list->arraySize *= 2;
+     }
+     list->array[list->size] = item;
+     list->size += 1;
+     printArray(list->array, list->size);
+     
+
+ }
+
+uint64_t* resize(uint64_t* array, uint64_t oldSize)
+ {
+     printf("oldsize: %ld\n", oldSize);
+     uint64_t newSize = oldSize * 2;
+     uint64_t* newArray = (uint64_t *) malloc(newSize*sizeof(uint64_t));
+     for (int i = 0; i < oldSize; i++)
+     {
+         newArray[i] = array[i];
+     }
+     printArray(newArray, newSize);
+     return newArray;
+ }
+
+ void printArray(uint64_t* array, uint64_t size)
+ {
+    for (int i = 0; i < size; i++)
+    {
+        printf("%ld\n", array[i]);
+    }
+ }
+
 struct Node {
     uint64_t data;
     int* array;
+    ArrayList* arraylist;
     int numElements;
     char* ptr;
     int end;
@@ -76,7 +129,9 @@ struct Node* newNode(void) {
     }
     return new;
 }
- 
+
+
+
 struct Node* root = NULL;
 
 /* The symbol table */
@@ -126,6 +181,20 @@ void setArray(char *id, int* array, int numElements) {
         current = current->children[pos];
     }
     current->array = array;
+    current->end = 1;
+    current->numElements = numElements;
+}
+
+void setArrayList(char *id, ArrayList* arraylist, int numElements) {
+    struct Node* current = root;
+    for (int i = 0; i < strlen(id); i++) {
+        int pos = getAlNumPos(id[i]);
+        if (current->children[pos] == NULL) {
+            current->children[pos] = newNode();
+        }
+        current = current->children[pos];
+    }
+    current->arraylist = arraylist;
     current->end = 1;
     current->numElements = numElements;
 }
@@ -260,6 +329,19 @@ void setCurrentToken(void) {
         current.kind = WHILE;
         current.length = 5;
     }
+    else if (cursor + 9 < len && prog[cursor] == 'a' && prog[cursor + 1] == 'r' && prog[cursor + 2] == 'r' &&
+            prog[cursor + 3] == 'a' && prog[cursor + 4] == 'y' && prog[cursor + 5] == 'l' && prog[cursor + 6] == 'i' &&
+            prog[cursor + 7] == 's' && prog[cursor + 8] == 't' && !isalnum(prog[cursor + 9])) {
+                current.kind = ARRAYLIST;
+                current.length = 9;
+    }
+    else if (cursor + 6 < len && prog[cursor] == 'i' && prog[cursor + 1] == 'n' && prog[cursor + 2] == 's' &&
+            prog[cursor + 3] == 'e' && prog[cursor + 4] == 'r' && prog[cursor + 5] == 't' && !isalnum(prog[cursor + 6])){
+        
+
+        current.kind = INSERT;
+        current.length = 6;
+            }
     else {
         // it's an identifier or function
         int currLength = 0;
@@ -427,6 +509,26 @@ uint64_t statement(int doit) {
                     if (doit) setArray(id, newArray, numElements); 
                 }
             }
+            else if (peek() == ARRAYLIST) {
+                consume();
+                if (peek() == TYPE_INT) {
+                    consume();
+                    int numElements = tokenPtr->token->value;
+                    ArrayList* newArrayList = new_ArrayList();
+                    newArrayList->size = numElements;
+                    newArrayList->array = (uint64_t*) malloc(numElements * sizeof(uint64_t));
+                    consume();
+                    for (int i = 0; i < numElements; i++) {
+                        newArrayList->array[i] = tokenPtr->token->value;
+                        consume();
+                        if (peek() == COMMA) consume();
+                    }
+                    uint64_t testItem = 3;
+                    insertArrayList(newArrayList, testItem);
+                    if (doit) setArrayList(id, newArrayList, numElements);
+                    
+                }
+            }
             else {
                 uint64_t v = expression();
                 if (doit) set(id, v);
@@ -493,10 +595,18 @@ uint64_t statement(int doit) {
                 int* arrayPtr = symbolTableNode->array; 
                 int sizeOfArray = symbolTableNode->numElements;
 
-                int formatStrSize = sizeOfArray + (sizeOfArray - 1) + 3; // size, commas, brackets, end
+                if (arrayPtr == NULL)
+                {
+                    ArrayList* list = symbolTableNode->arraylist;
+                    arrayPtr = (int *)list->array;
+                    sizeOfArray = list->size;
+                    
+                }
+
+                int formatStrSize = sizeOfArray + (sizeOfArray - 1) + 7; // size, commas, brackets, end
                 char formatStr[formatStrSize];
-                int index = 0;
-                for (int i = 0; i < formatStrSize; i++) {
+                uint64_t index = 0;
+                for (int64_t i = 0; i < formatStrSize; i++) {
                     if (i == 0) formatStr[i] = '{';
                     else if (i == formatStrSize - 2) formatStr[i] = '}';
                     else if (i == formatStrSize - 1) formatStr[i] = '\0';
@@ -637,6 +747,7 @@ char* stringifyKind(enum Kind kind) {
         case NONE: return "none";
         case PLUS: return "plus";
         case PRINT: return "print";
+        case PRINTARRAY: return "printarray";
         case RBRACE: return "rbrace";
         case RIGHT: return "right";
         case WHILE: return "while";
@@ -645,6 +756,7 @@ char* stringifyKind(enum Kind kind) {
         case ARRAY: return "array";
         case TYPE_INT: return "type_int";
         case COMMA: return "comma";
+        case ARRAYLIST: return "arraylist";
     }
 }
 
@@ -664,6 +776,7 @@ int main(int argc, char* argv[]) {
     }
     while (tokenPtr->token->kind != END);
     */
+    
 
     interpret(prog);
     return 0;
