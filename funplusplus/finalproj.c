@@ -58,6 +58,7 @@ struct Token {
 struct Node {
     uint64_t data;
     int* array;
+    int numElements;
     char* ptr;
     int end;
     struct Node* children[36];
@@ -105,17 +106,17 @@ uint64_t get(char *id) {
     return current->data;
 }
 
-int* getArray(char *id) {
+struct Node* getNode(char *id) {
     if (!inSymbolTable(id)) return 0;
     struct Node* current = root;
     for (int i = 0; i < strlen(id); i++) {
         int pos = getAlNumPos(id[i]);
         current = current->children[pos];
     }
-    return current->array;
+    return current;
 }
 
-void setArray(char *id, int* array) {
+void setArray(char *id, int* array, int numElements) {
     struct Node* current = root;
     for (int i = 0; i < strlen(id); i++) {
         int pos = getAlNumPos(id[i]);
@@ -126,6 +127,7 @@ void setArray(char *id, int* array) {
     }
     current->array = array;
     current->end = 1;
+    current->numElements = numElements;
 }
 
 void set(char *id, uint64_t value) {
@@ -415,14 +417,14 @@ uint64_t statement(int doit) {
                 if (peek() == TYPE_INT) {
                     consume();
                     int numElements = tokenPtr->token->value;
-                    int newArray[numElements];
+                    int* newArray = (int*) malloc(numElements * sizeof(int));
                     consume();
                     for (int i = 0; i < numElements; i++) {
                         newArray[i] = tokenPtr->token->value;
                         consume();
                         if (peek() == COMMA) consume();
                     }
-                    if (doit) setArray(id, newArray); 
+                    if (doit) setArray(id, newArray, numElements); 
                 }
             }
             else {
@@ -486,11 +488,26 @@ uint64_t statement(int doit) {
         case PRINTARRAY: {
             consume();
             if (doit) {
-                int* arrayPtr = getArray(getId());
-                int sizeOfArray = sizeof arrayPtr / sizeof *(arrayPtr);
-                for (int i = 0; i < sizeOfArray; i++) {
-                    printf("%d", arrayPtr[i]);
-                }
+                char* id = getId();
+                struct Node* symbolTableNode = getNode(id);
+                int* arrayPtr = symbolTableNode->array; 
+                int sizeOfArray = symbolTableNode->numElements;
+
+                int formatStrSize = sizeOfArray + (sizeOfArray - 1) + 3; // size, commas, brackets, end
+                char formatStr[formatStrSize];
+                int index = 0;
+                for (int i = 0; i < formatStrSize; i++) {
+                    if (i == 0) formatStr[i] = '{';
+                    else if (i == formatStrSize - 2) formatStr[i] = '}';
+                    else if (i == formatStrSize - 1) formatStr[i] = '\0';
+                    else if (i % 2 == 0) formatStr[i] = ' ';
+                    else {
+                        formatStr[i] = arrayPtr[index] + '0';
+                        index++;
+                    }
+                }               
+                printf("%s\n", formatStr);
+                
                 consume();
             }
             else consume();
@@ -640,11 +657,13 @@ int main(int argc, char* argv[]) {
 
     pretokenize();
 
+    /*
     do {
         printf("%s\n", stringifyKind(tokenPtr->token->kind));
         consume();
     }
     while (tokenPtr->token->kind != END);
+    */
 
     interpret(prog);
     return 0;

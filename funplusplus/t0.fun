@@ -1,1 +1,2 @@
-x = array int 2 1,2
+x = array int 4 1,2,3,4
+printarray x
