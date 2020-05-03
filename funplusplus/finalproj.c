@@ -59,7 +59,7 @@ struct Token {
 struct Node {
     enum Kind kind;
     uint64_t data;
-    int* array;
+    uint64_t* array;
     int numElements;
     char* ptr;
     int end;
@@ -120,11 +120,11 @@ struct Node* getNode(char *id) {
 
 void setArrayAtIndex(char *id, uint64_t value, int index) {
     struct Node* symbolTableNode = getNode(id);
-    int* array = symbolTableNode->array;
+    uint64_t* array = symbolTableNode->array;
     array[index] = value;
 }
 
-void setArray(char *id, int* array, int numElements) {
+void setArray(char *id, uint64_t* array, int numElements) {
     struct Node* current = root;
     for (int i = 0; i < strlen(id); i++) {
         int pos = getAlNumPos(id[i]);
@@ -446,7 +446,7 @@ uint64_t statement(int doit) {
                     if (peek() == TYPE_INT) {
                         consume();
                         int numElements = tokenPtr->token->value;
-                        int* newArray = (int*) malloc(numElements * sizeof(int));
+                        uint64_t* newArray = (uint64_t*) malloc(numElements * sizeof(uint64_t));
                         consume();
                         for (int i = 0; i < numElements; i++) {
                             newArray[i] = tokenPtr->token->value;
@@ -525,7 +525,7 @@ uint64_t statement(int doit) {
                     if (symbolTableNode->kind == INT) printf("%ld\n", get(id));
                     else {
                         // it is an array
-                        int* arrayPtr = symbolTableNode->array; 
+                        uint64_t* arrayPtr = symbolTableNode->array; 
                         int sizeOfArray = symbolTableNode->numElements;
 
                         int formatStrSize = sizeOfArray + (sizeOfArray - 1) + 3; // size, commas, brackets, end
