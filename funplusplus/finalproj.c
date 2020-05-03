@@ -665,15 +665,16 @@ int main(int argc, char* argv[]) {
 
     pretokenize();
 
-    
+   /* 
     do {
         printf("%s\n", stringifyKind(tokenPtr->token->kind));
         consume();
     }
     while (tokenPtr->token->kind != END);
+*/
     
 
-    //interpret(prog);
+    interpret(prog);
     return 0;
 }
 
