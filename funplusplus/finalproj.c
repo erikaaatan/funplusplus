@@ -41,7 +41,8 @@ enum Kind {
     ARRAY,
     TYPE_INT,
     COMMA,
-    PRINTARRAY
+    PRINTARRAY,
+    LINKEDLIST
 };
 
 /* information about a token */
@@ -58,15 +59,24 @@ struct Token {
 struct Node {
     uint64_t data;
     int* array;
+    struct LinkedList* head;
+    struct LinkedList* tail;
     int numElements;
     char* ptr;
     int end;
     struct Node* children[36];
 };
 
+// LINKEDNODES CARRY PRETOKENIZED VALUES
 struct LinkedNode {
     struct Token* token;
     struct LinkedNode* next;
+};
+
+// LINKEDLISTS REPRESENT VARIABLES DECLARED IN FUN
+struct LinkedList {
+    uint64_t data;
+    struct LinkedList* next;
 };
 
 struct Node* newNode(void) {
@@ -114,6 +124,21 @@ struct Node* getNode(char *id) {
         current = current->children[pos];
     }
     return current;
+}
+
+void setLinkedList(char *id, struct LinkedList* head, struct LinkedList* tail, int numElements) {
+    struct Node* current = root;
+    for (int i = 0; i < strlen(id); i++) {
+        int pos = getAlNumPos(id[i]);
+        if (current->children[pos] == NULL) {
+            current->children[pos] = newNode();
+        }
+        current = current->children[pos];
+    }
+    current->head = head;
+    current->tail = tail;
+    current->end = 1;
+    current->numElements = numElements;
 }
 
 void setArray(char *id, int* array, int numElements) {
@@ -253,6 +278,11 @@ void setCurrentToken(void) {
     else if (cursor + 10 < len && prog[cursor] == 'p' && prog[cursor + 1] == 'r' && prog[cursor + 2] == 'i' &&
              prog[cursor + 3] == 'n' && prog[cursor + 4] == 't' && prog[cursor + 5] == 'a' && prog[cursor + 6] == 'r' && prog[cursor + 7] == 'r' && prog[cursor + 8] == 'a' && prog[cursor + 9] == 'y' && !isalnum(prog[cursor + 10])) {
         current.kind = PRINTARRAY;
+        current.length = 10;
+    }
+    else if (cursor + 10 < len && prog[cursor] == 'l' && prog[cursor + 1] == 'i' && prog[cursor + 2] == 'n' &&
+             prog[cursor + 3] == 'k' && prog[cursor + 4] == 'e' && prog[cursor + 5] == 'd' && prog[cursor + 6] == 'l' && prog[cursor + 7] == 'i' && prog[cursor + 8] == 's' && prog[cursor + 9] == 't' && !isalnum(prog[cursor + 10])) {
+        current.kind = LINKEDLIST;
         current.length = 10;
     }
     else if (cursor + 5 < len && prog[cursor] == 'w' && prog[cursor + 1] == 'h' && prog[cursor + 2] == 'i' &&
@@ -412,19 +442,44 @@ uint64_t statement(int doit) {
             if (peek() != EQ)
                 error();
             consume();
-            if (peek() == ARRAY) {
+            if (peek() == ARRAY || peek() == LINKEDLIST) {
+                enum Kind kind = peek();
                 consume();
                 if (peek() == TYPE_INT) {
                     consume();
                     int numElements = tokenPtr->token->value;
-                    int* newArray = (int*) malloc(numElements * sizeof(int));
-                    consume();
-                    for (int i = 0; i < numElements; i++) {
-                        newArray[i] = tokenPtr->token->value;
-                        consume();
-                        if (peek() == COMMA) consume();
+
+                    switch (kind) {
+                        case ARRAY: {
+                            int* newArray = (int*) malloc(numElements * sizeof(int));
+                            consume();
+                            for (int i = 0; i < numElements; i++) {
+                                newArray[i] = tokenPtr->token->value;
+                                consume();
+                                if (peek() == COMMA) consume();
+                            }
+                            if (doit) setArray(id, newArray, numElements); 
+                            break;
+                        }
+                        case LINKEDLIST: {
+                            struct LinkedList* head = (struct LinkedList*)malloc(sizeof(struct LinkedList));
+                            struct LinkedList* tail = (struct LinkedList*)malloc(sizeof(struct LinkedList));
+                            consume();
+                            tail->data = tokenPtr->token->value;
+                            head = tail;
+                            consume();
+                            for (int i = 1; i < numElements; i++) {
+                                if (peek() == COMMA) consume();
+                                struct LinkedList* newNode = (struct LinkedList*)malloc(sizeof(struct LinkedList));
+                                newNode->data = tokenPtr->token->value;
+                                consume();
+                                tail->next = newNode;
+                                tail = newNode;
+                            }
+                            if (doit) setLinkedList(id, head, tail, numElements);
+                            break;
+                        }
                     }
-                    if (doit) setArray(id, newArray, numElements); 
                 }
             }
             else {
@@ -666,6 +721,12 @@ int main(int argc, char* argv[]) {
     */
 
     interpret(prog);
+
+    struct LinkedList* current = getNode("x")->head;
+    while (current->next != NULL) {
+        printf("%ld\n", current->data);
+        current = current->next;
+    }
     return 0;
 }
 
