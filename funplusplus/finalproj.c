@@ -41,7 +41,6 @@ enum Kind {
     ARRAY,
     TYPE_INT,
     COMMA,
-    PRINTARRAY,
     LBRACKET, // [
     RBRACKET  // ]
 };
@@ -268,11 +267,6 @@ void setCurrentToken(void) {
              prog[cursor + 3] == 'n' && prog[cursor + 4] == 't' && !isalnum(prog[cursor + 5])) {
         current.kind = PRINT;
         current.length = 5;
-    }
-    else if (cursor + 10 < len && prog[cursor] == 'p' && prog[cursor + 1] == 'r' && prog[cursor + 2] == 'i' &&
-             prog[cursor + 3] == 'n' && prog[cursor + 4] == 't' && prog[cursor + 5] == 'a' && prog[cursor + 6] == 'r' && prog[cursor + 7] == 'r' && prog[cursor + 8] == 'a' && prog[cursor + 9] == 'y' && !isalnum(prog[cursor + 10])) {
-        current.kind = PRINTARRAY;
-        current.length = 10;
     }
     else if (cursor + 5 < len && prog[cursor] == 'w' && prog[cursor + 1] == 'h' && prog[cursor + 2] == 'i' &&
              prog[cursor + 3] == 'l' && prog[cursor + 4] == 'e' && !isalnum(prog[cursor + 5])) {
