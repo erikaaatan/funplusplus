@@ -41,7 +41,6 @@ enum Kind {
     ARRAY,
     TYPE_INT,
     COMMA,
-    PRINTARRAY,
     LINKEDLIST,
     LBRACKET, // [
     RBRACKET,  // ]
@@ -280,6 +279,7 @@ void setLinkedList(char *id, struct LinkedList* head, struct LinkedList* tail, i
     current->tail = tail;
     current->end = 1;
     current->numElements = numElements;
+    current->kind = LINKEDLIST;
 }
 
 void setArrayAtIndex(char *id, uint64_t value, int index) {
@@ -894,7 +894,18 @@ uint64_t statement(int doit) {
                         printf("%ld\n", get(id));
                         consume();
                     }
-                    // ID is a data structure type
+                    else if (symbolTableNode->kind == LINKEDLIST) {
+                        struct LinkedList* current = getNode(id)->head;
+                        printf("{");
+                        while (current != NULL) {
+                            printf("%ld", current->data);
+                            current = current->next;
+                            if (current != NULL) printf(" ");
+                        }
+                        printf("}\n");
+                        consume();
+                    }
+                    // ID is an array/arraylist
                     else {
                         // it is an array
                         uint64_t* arrayPtr;
@@ -964,7 +975,7 @@ uint64_t statement(int doit) {
             }
             // Consume tokens if not being executed
             else {
-                if (peek() == ID && (getNode(getId())->kind == ARRAY) | getNode(getId())->kind == ARRAYLIST) consume();
+                if (peek() == ID && getNode(getId())->kind == LINKEDLIST | getNode(getId())->kind == ARRAY | getNode(getId())->kind == ARRAYLIST) consume();
                 else expression();
             }
             return 1;
@@ -1086,7 +1097,6 @@ char* stringifyKind(enum Kind kind) {
         case NONE: return "none";
         case PLUS: return "plus";
         case PRINT: return "print";
-        case PRINTARRAY: return "printarray";
         case RBRACE: return "rbrace";
         case RIGHT: return "right";
         case WHILE: return "while";
