@@ -722,11 +722,6 @@ int main(int argc, char* argv[]) {
 
     interpret(prog);
 
-    struct LinkedList* current = getNode("x")->head;
-    while (current->next != NULL) {
-        printf("%ld\n", current->data);
-        current = current->next;
-    }
     return 0;
 }
 
