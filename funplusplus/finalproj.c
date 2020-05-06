@@ -217,6 +217,38 @@ struct LinkedList {
     struct LinkedList* next;
 };
 
+void insertLinkedList(struct Node* symbolTableNode, uint64_t item) {
+    struct LinkedList* tail = symbolTableNode->tail;
+    struct LinkedList* newNode = (struct LinkedList*)malloc(sizeof(struct LinkedList));
+
+    newNode->data = item;
+    tail->next = newNode;
+    symbolTableNode->tail = newNode;
+    symbolTableNode->numElements += 1;
+}
+
+void removeLinkedList(struct Node* symbolTableNode, uint64_t index) {
+    // Bounds Checking
+    if (index >= symbolTableNode->numElements | index < 0) {
+        error();
+    }
+
+    if (index == 0) {
+        symbolTableNode->head = symbolTableNode->head->next;
+    }
+    else {
+        struct LinkedList* previous = symbolTableNode->head;
+        struct LinkedList* current = previous->next ;
+        for (int i = 1; i < index; i++) {
+            previous = current;
+            current = current->next;
+        }
+        previous->next = current->next;
+    }
+
+    symbolTableNode->numElements -= 1;
+}
+
 struct Node* newNode(void) {
     struct Node* new = (struct Node*) malloc(sizeof(struct Node));
     for (int i = 0; i < 36; i++) {
@@ -654,75 +686,74 @@ uint64_t statement(int doit) {
 
                 // Array and ArrayList indexing
                 if (peek() == LBRACKET) {
-                // array indexing
-                consume();
-                
-                // get index from expression
-                uint64_t index = expression();
-
-
-
-                /*
-                if (peek() == INT) {
-                    index = tokenPtr->token->value;
-                }
-                else if (peek() == ID) {
-                    char* id = getId();
-                    struct Node* idNode = getNode(id);
-                    if (idNode->kind == INT) {
-                        index = idNode->data;
-                    }
-                    else error();
-                }
-                else error();
-                */
-                
-                if (peek() != RBRACKET) error();
-                consume();
-
-                if (peek() != EQ) error();
-                consume();
-
-                uint64_t v = expression();
-                // Set array for arrays and arraylists
-                if (doit) setArrayAtIndex(id, v, index);
-
-                }
-                // CASE: ArrayList, LinkedList, Queue insert
-                else if (peek() == INSERT) {
-                consume();
-                if (symbolTableNode->kind == ARRAYLIST) {
-                    // TODO: Type checking with data structure
-                    uint64_t item = expression();
-                    if (doit) insertArrayList(symbolTableNode->arraylist, item);
-
+                    // array indexing
+                    consume();
+                    
+                    // get index from expression
+                    uint64_t index = expression();
                     /*
                     if (peek() == INT) {
-                        uint64_t item = getInt();
-                        if(doit)
-                            insertArrayList(symbolTableNode->arraylist, item);
-                        consume();
+                        index = tokenPtr->token->value;
                     }
                     else if (peek() == ID) {
                         char* id = getId();
                         struct Node* idNode = getNode(id);
                         if (idNode->kind == INT) {
-                            uint64_t v = expression();
-                            if (doit) insertArrayList(symbolTableNode->arraylist, v);
+                            index = idNode->data;
                         }
+                        else error();
                     }
-                    
-                    else {
-                        error();
-                        }
+                    else error();
                     */
+                    
+                    if (peek() != RBRACKET) error();
+                    consume();
+
+                    if (peek() != EQ) error();
+                    consume();
+
+                    uint64_t v = expression();
+                    // Set array for arrays and arraylists
+                    if (doit) setArrayAtIndex(id, v, index);
+                }
+                // CASE: ArrayList, LinkedList, Queue insert
+                else if (peek() == INSERT) {
+                    consume();
+                    uint64_t item = expression();
+                    if (symbolTableNode->kind == ARRAYLIST) {
+                        // TODO: Type checking with data structure
+                        if (doit) insertArrayList(symbolTableNode->arraylist, item);
+
+                        /*
+                        if (peek() == INT) {
+                            uint64_t item = getInt();
+                            if(doit)
+                                insertArrayList(symbolTableNode->arraylist, item);
+                            consume();
+                        }
+                        else if (peek() == ID) {
+                            char* id = getId();
+                            struct Node* idNode = getNode(id);
+                            if (idNode->kind == INT) {
+                                uint64_t v = expression();
+                                if (doit) insertArrayList(symbolTableNode->arraylist, v);
+                            }
+                        }
+                        
+                        else {
+                            error();
+                            }
+                        */
+                    }
+                    else if (symbolTableNode->kind == LINKEDLIST) {
+                        if (doit) insertLinkedList(symbolTableNode, item);
                     }
                 }
                 // CASE: ArrayList, LinkedList, Queue Remove
                 else if (peek() == REMOVE) {
                     consume();
+                    uint64_t index = expression();
                     if (symbolTableNode->kind == ARRAYLIST) {
-                        uint64_t index = expression();
                         if (doit) removeArrayList(symbolTableNode->arraylist, index);
                         /*
                         if (peek() == INT) {
@@ -744,13 +775,16 @@ uint64_t statement(int doit) {
                         }
                         */
                     }
+                    else if (symbolTableNode->kind == LINKEDLIST) {
+                        if (doit) removeLinkedList(symbolTableNode, index);
+                    }
                 }
                 return 1;
             }
             // Check for equals after ID
             if (peek() != EQ) error();
             consume();
-            if (peek() == ARRAY || peek() == LINKEDLIST) {
+            if (peek() == ARRAY || peek() == LINKEDLIST || peek() == ARRAYLIST) {
                 enum Kind kind = peek();
                 consume();
                 if (peek() == TYPE_INT) {
@@ -787,29 +821,23 @@ uint64_t statement(int doit) {
                             if (doit) setLinkedList(id, head, tail, numElements);
                             break;
                         }
+                        case ARRAYLIST: {
+                            ArrayList* newArrayList = new_ArrayList();
+                            newArrayList->size = numElements;
+                            newArrayList->array = (uint64_t*) malloc(numElements * sizeof(uint64_t));
+                            consume();
+
+                            for (int i = 0; i < numElements; i++) {
+                                newArrayList->array[i] = tokenPtr->token->value;
+                                consume();
+                                if (peek() == COMMA) consume();
+                            }
+                            uint64_t testItem = 3;
+                            insertArrayList(newArrayList, testItem);
+
+                            if (doit) setArrayList(id, newArrayList, numElements);
+                        }
                    }
-                }
-            }
-            else if (peek() == ARRAYLIST) {
-                consume();
-                if (peek() == TYPE_INT) {
-                    consume();
-                    int numElements = tokenPtr->token->value;
-                    ArrayList* newArrayList = new_ArrayList();
-                    newArrayList->size = numElements;
-                    newArrayList->array = (uint64_t*) malloc(numElements * sizeof(uint64_t));
-                    consume();
-
-                    for (int i = 0; i < numElements; i++) {
-                        newArrayList->array[i] = tokenPtr->token->value;
-                        consume();
-                        if (peek() == COMMA) consume();
-                    }
-                    uint64_t testItem = 3;
-                    insertArrayList(newArrayList, testItem);
-
-                    if (doit) setArrayList(id, newArrayList, numElements);
-                    
                 }
             }
             // Normal expression assignment
@@ -818,21 +846,15 @@ uint64_t statement(int doit) {
                 if (doit) set(id, v);
             }
             return 1;
-            }
-            /*
-            else {
-                uint64_t v = expression();
-                if (doit) set(id, v);
-            }
-        */
-            
-        case LBRACE:
+        }
+        case LBRACE: {
             consume();
             seq(doit);
             if (peek() != RBRACE)
                 error();
             consume();
             return 1;
+        }
         case IF: {
             consume();
             uint64_t v = expression();
@@ -975,7 +997,7 @@ uint64_t statement(int doit) {
             }
             // Consume tokens if not being executed
             else {
-                if (peek() == ID && getNode(getId())->kind == LINKEDLIST | getNode(getId())->kind == ARRAY | getNode(getId())->kind == ARRAYLIST) consume();
+                if (getNode(getId()) != NULL && (peek() == ID && getNode(getId())->kind == LINKEDLIST | getNode(getId())->kind == ARRAY | getNode(getId())->kind == ARRAYLIST)) consume();
                 else expression();
             }
             return 1;
