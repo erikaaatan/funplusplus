@@ -832,8 +832,6 @@ uint64_t statement(int doit) {
                                 consume();
                                 if (peek() == COMMA) consume();
                             }
-                            uint64_t testItem = 3;
-                            insertArrayList(newArrayList, testItem);
 
                             if (doit) setArrayList(id, newArrayList, numElements);
                         }
