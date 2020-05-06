@@ -43,7 +43,10 @@ enum Kind {
     COMMA,
     LBRACKET, // [
     RBRACKET,  // ]
-    ARRAYLIST
+    ARRAYLIST,
+    QUEUE,
+    ADD,
+    PEEK
 };
 
 /* information about a token */
@@ -279,6 +282,10 @@ void setCurrentToken(void) {
             prog[cursor + 7] == 's' && prog[cursor + 8] == 't' && !isalnum(prog[cursor + 9])) {
                 current.kind = ARRAYLIST;
                 current.length = 9;
+    }
+    else if (cursor + 5 < len && prog[cursor] == 'q' && prog[cursor + 1] == 'u' && prog[cursor + 2] == 'e' && prog [cursor + 3] == 'u' && prog[cursor + 4] == 'e' && !isalnum(prog[cursor + 5])) {
+        current.king == QUEUE; 
+	current.length == 5;
     }
     else {
         // it's an identifier or function
