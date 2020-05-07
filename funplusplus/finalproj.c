@@ -72,6 +72,8 @@ typedef struct ArrayList {
     uint64_t size;
     uint64_t arraySize;
     uint64_t *array;
+    char **array_str;
+    enum Kind kind;
 } ArrayList;
  
  struct ArrayList* new_ArrayList(void) {
@@ -83,19 +85,32 @@ typedef struct ArrayList {
 uint64_t* resizeUp(uint64_t* array, uint64_t oldSize);
 void printArray(uint64_t* array, uint64_t size);
 uint64_t* resizeDown(uint64_t* array, uint64_t oldSize);
+char **resizeUp_str(char **array_str, uint64_t oldSize);
+char **resizeDown_str(char **array_str, uint64_t oldSize);
 
- void insertArrayList(ArrayList* list, uint64_t item)
+ void insertArrayList(ArrayList* list, uint64_t item, char *str_item)
  {
-     if (list->size >= (list->arraySize) / 2)
-     {
-         list->array = resizeUp(list->array, list->size);
-         list->arraySize *= 2;
+    if (list->kind == INT) {
+        if (list->size >= (list->arraySize) / 2)
+        {
+            list->array = resizeUp(list->array, list->size);
+            list->arraySize *= 2;
+        }
+        list->array[list->size] = item;
+        list->size += 1;
+        //printArray(list->array, list->size);
      }
-     list->array[list->size] = item;
-     list->size += 1;
-     //printArray(list->array, list->size);
+     else if (list->kind == STRING) {
+        if (list->size >= (list->arraySize) / 2)
+        {
+            list->array_str = resizeUp_str(list->array_str, list->size);
+            list->arraySize *= 2;
+        }
+        list->array_str[list->size] = str_item;
+        list->size += 1;
+     }
      
-
+     
  }
 
  void removeArrayList(ArrayList* list, uint64_t index)
@@ -108,38 +123,71 @@ uint64_t* resizeDown(uint64_t* array, uint64_t oldSize);
         error();
     }
     uint64_t newSize = oldSize - 1;
+
+    if (list->kind == INT) {
+        for (int i = index; i < oldSize - 1; i++)
+        {
+            list->array[i] = list->array[i+1];
+        }
+
+        list->array[oldSize] = 0;
+        list->size = newSize;
+
+        if (newSize <= ((list->arraySize) / 2))
+        {
+            list->array = resizeDown(list->array, list->size);
+            list->arraySize /= 2;
+        }
+    }
+    else if (list->kind == STRING) {
+        for (int i = index; i < oldSize - 1; i++)
+        {
+            list->array_str[i] = list->array_str[i+1];
+        }
+
+        list->array_str[oldSize] = 0;
+        list->size = newSize;
+
+        if (newSize <= ((list->arraySize) / 2))
+        {
+            list->array_str = resizeDown_str(list->array_str, list->size);
+            list->arraySize /= 2;
+        }
+    }
     
-    for (int i = index; i < oldSize - 1; i++)
-    {
-        list->array[i] = list->array[i+1];
-    }
-
-    list->array[oldSize] = 0;
-    list->size = newSize;
-
-    if (newSize <= ((list->arraySize) / 2))
-    {
-        list->array = resizeDown(list->array, list->size);
-        list->arraySize /= 2;
-    }
+    
  }
 
-uint64_t* resizeUp(uint64_t* array, uint64_t oldSize)
- {
-     //printf("oldsize: %ld\n", oldSize);
-     uint64_t newSize = oldSize * 2;
+uint64_t* resizeUp(uint64_t* array, uint64_t oldSize) {
+    //printf("oldsize: %ld\n", oldSize);
+    uint64_t newSize = oldSize * 2;
 
-     // TODO: Consider freeing old array
-     uint64_t* newArray = (uint64_t *) malloc(newSize*sizeof(uint64_t));
+    // TODO: Consider freeing old array
+    uint64_t* newArray = (uint64_t *) malloc(newSize*sizeof(uint64_t));
 
-     // Copy array elements
-     for (int i = 0; i < oldSize; i++)
-     {
-         newArray[i] = array[i];
-     }
-     //printArray(newArray, newSize);
-     return newArray;
- }
+    // Copy array elements
+    for (int i = 0; i < oldSize; i++)
+    {
+        newArray[i] = array[i];
+    }
+    //printArray(newArray, newSize);
+    return newArray;
+}
+
+ char **resizeUp_str(char **array_str, uint64_t oldSize) {
+    //printf("oldsize: %ld\n", oldSize);
+    uint64_t newSize = oldSize * 2;
+
+    char **newArray_str = (char **) malloc(newSize*sizeof(char*));
+
+    // Copy array elements
+    for (int i = 0; i < oldSize; i++)
+    {
+        newArray_str[i] = array_str[i];
+    }
+    return newArray_str;
+
+}
 
  uint64_t* resizeDown(uint64_t* array, uint64_t oldSize)
  {
@@ -152,8 +200,23 @@ uint64_t* resizeUp(uint64_t* array, uint64_t oldSize)
      {
          newArray[i] = array[i];
      }
-    printArray(array, newSize);
+    //printArray(array, newSize);
     return newArray;
+ }
+
+ char **resizeDown_str(char **array_str, uint64_t oldSize) {
+    uint64_t newSize = oldSize / 2;
+    // TODO: Consider freeing old array
+
+    char ** newArray_str = (char **) malloc(newSize*sizeof(char *));
+
+    for (int i = 0; i < newSize; i++)
+    {
+        newArray_str[i] = array_str[i];
+    }
+
+    return newArray_str;
+
  }
 
  void printArray(uint64_t* array, uint64_t size)
@@ -650,11 +713,18 @@ uint64_t e1(void) {
         uint64_t v = getInt();
         consume();
         return v;
-    } else if (peek() == ID) {
+    }  /*else if (peek() == ID && tokenPtr->token->kind == STRING) {
+        consume();
+        return (uint64_t) tokenPtr->token->str;
+    }*/else if (peek() == ID) {
         char *id = getId();
         consume();
         return get(id);
-    } else if (peek() == DEC) {
+    } /*else if (peek() == STRING) {
+        consume();
+        return (uint64_t) tokenPtr->token->str;
+    }*/
+    else if (peek() == DEC) {
         consume();
         uint64_t v = tokenPtr->token->index;
         // don't execute this function
@@ -747,10 +817,18 @@ uint64_t statement(int doit) {
                 // CASE: ArrayList, LinkedList, Queue insert
                 else if (peek() == INSERT) {
                     consume();
-                    uint64_t item = expression();
+                    uint64_t item;
+                    char *item_str;
                     if (symbolTableNode->kind == ARRAYLIST) {
                         // TODO: Type checking with data structure
-                        if (doit) insertArrayList(symbolTableNode->arraylist, item);
+                        if (symbolTableNode->arraylist->kind == STRING) {
+                            item_str = tokenPtr->token->str;
+                            consume();
+                        }
+                        else if (symbolTableNode->arraylist->kind == INT) {
+                            item = expression();
+                        }
+                        if (doit) insertArrayList(symbolTableNode->arraylist, item, item_str);
 
                     }
                     else if (symbolTableNode->kind == LINKEDLIST) {
@@ -813,7 +891,10 @@ uint64_t statement(int doit) {
                         case ARRAYLIST: {
                             ArrayList* newArrayList = new_ArrayList();
                             newArrayList->size = numElements;
+                            
                             newArrayList->array = (uint64_t*) malloc(numElements * sizeof(uint64_t));
+                            newArrayList->array_str = NULL;
+                            newArrayList->kind = INT;
                             consume();
 
                             for (int i = 0; i < numElements; i++) {
@@ -825,6 +906,30 @@ uint64_t statement(int doit) {
                             if (doit) setArrayList(id, newArrayList, numElements);
                         }
                    }
+                }
+                else if (peek() == TYPE_STRING) {
+                    consume();
+                    int numElements = tokenPtr->token->value;
+                    switch (kind) {
+                        case ARRAYLIST: {
+                            ArrayList* newArrayList = new_ArrayList();
+                            newArrayList->size = numElements;
+
+                            newArrayList->array_str = (char**)malloc(numElements*sizeof(char*));
+                            consume();
+                            newArrayList->kind = STRING;
+                            for (int i = 0; i < numElements; i++) {
+                                if (peek() != STRING) error();
+                                newArrayList->array_str[i] = tokenPtr->token->str;
+                                consume();
+                                if (peek() == COMMA) consume();
+
+                            }
+
+                            if (doit) setArrayList(id, newArrayList, numElements);
+                            
+                        }
+                    }
                 }
             }
             // Normal expression assignment
@@ -930,7 +1035,9 @@ uint64_t statement(int doit) {
                     else {
                         // it is an array
                         uint64_t* arrayPtr;
+                        char **array_strPtr;
                         uint64_t sizeOfArray;
+                        enum Kind type;
 
                         // ID is an array
                         if (symbolTableNode->kind == ARRAY) {
@@ -941,7 +1048,9 @@ uint64_t statement(int doit) {
                         else if (symbolTableNode->kind == ARRAYLIST)
                         {
                             ArrayList* list = symbolTableNode->arraylist;
+                            type = list->kind;
                             arrayPtr = list->array;
+                            array_strPtr = list->array_str;
                             sizeOfArray = list->size;
                         }
 
@@ -962,7 +1071,13 @@ uint64_t statement(int doit) {
                             else if (i == formatStrSize - 1) printf("\n");
                             else if (i % 2 == 0) printf(" ");
                             else {
-                                printf("%ld", arrayPtr[index]);
+                                if (type == INT) {
+                                    printf("%ld", arrayPtr[index]);
+                                }
+                                else if (type == STRING) {
+                                    printf("%s", (char *)array_strPtr[index]);
+                                }
+                                
                                 index++;
                             }
                         }
@@ -1108,7 +1223,8 @@ char* stringifyKind(enum Kind kind) {
         case LBRACKET: return "[";
         case RBRACKET: return "]";
         case SUB: return "sub";
-        case TYPE_STRING: return "string";
+        case TYPE_STRING: return "type_string";
+        case STRING: return "string";
         
     }
 }
@@ -1129,6 +1245,7 @@ int main(int argc, char* argv[]) {
     }
     while (tokenPtr->token->kind != END);
 */
+
 
 
 
