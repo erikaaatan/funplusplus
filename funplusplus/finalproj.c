@@ -1,5 +1,4 @@
 #include <stdint.h>
-
 #include <sys/resource.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -265,6 +264,7 @@ struct Node {
     struct LinkedList* tail;
     ArrayList* arraylist;
     uint64_t* array;
+    char** array_str;
     int numElements;
     char* ptr;
     char* str;
@@ -381,27 +381,28 @@ void setLinkedList(char *id, struct LinkedList* head, struct LinkedList* tail, i
     current->kind = LINKEDLIST;
 }
 
-void setArrayAtIndex(char *id, uint64_t value, int index) {
+void setArrayAtIndex(char *id, uint64_t value, char *str, int index) {
     struct Node* symbolTableNode = getNode(id);
     enum Kind type = symbolTableNode->kind;
     uint64_t* array;
+    char** array_str;
     if (type == ARRAY) {
         array = symbolTableNode->array;
+        array_str = symbolTableNode->array_str;
         // Bounds Checking
-        if (index < 0 | index >= symbolTableNode->numElements)
-        {
-            error();
-        }
+        if (index < 0 | index >= symbolTableNode->numElements) error(); 
+        
+        if (array == NULL) array_str[index] = str;
+        else array[index] = value;
     }
     else if (type == ARRAYLIST) {
         array = symbolTableNode->arraylist->array;
+        array_str = symbolTableNode->arraylist->array_str;
         // Bounds Checking
-        if (index < 0 || index >= symbolTableNode->arraylist->size) {
-            error();
-        }
+        if (index < 0 || index >= symbolTableNode->arraylist->size) error();
     }
-    
-    array[index] = value;
+    if (array == NULL) array_str[index] = str;
+    else array[index] = value;
 }
 // Set Trie Node Methods for Data structure types
 void setArray(char *id, uint64_t* array, int numElements) {
@@ -414,6 +415,21 @@ void setArray(char *id, uint64_t* array, int numElements) {
         current = current->children[pos];
     }
     current->array = array;
+    current->end = 1;
+    current->numElements = numElements;
+    current->kind = ARRAY;
+}
+
+void setArray_str(char *id, char** array, int numElements) {
+    struct Node* current = root;
+    for (int i = 0; i < strlen(id); i++) {
+        int pos = getAlNumPos(id[i]);
+        if (current->children[pos] == NULL) {
+            current->children[pos] = newNode();
+        }
+        current = current->children[pos];
+    }
+    current->array_str = array;
     current->end = 1;
     current->numElements = numElements;
     current->kind = ARRAY;
@@ -798,21 +814,25 @@ uint64_t statement(int doit) {
 
                 // Array and ArrayList indexing
                 if (peek() == LBRACKET) {
-                    // array indexing
                     consume();
-                    
-                    // get index from expression
                     uint64_t index = expression();
-                    
                     if (peek() != RBRACKET) error();
-                    consume();
+                        consume();
 
                     if (peek() != EQ) error();
-                    consume();
+                        consume();
 
-                    uint64_t v = expression();
+                    char* str;
+                    uint64_t v;
+                    if (peek() == STRING) {
+                        str = tokenPtr->token->str;
+                        consume();
+                    }
+                    else v = expression();
+
                     // Set array for arrays and arraylists
-                    if (doit) setArrayAtIndex(id, v, index);
+                    if (doit) setArrayAtIndex(id, v, str, index);
+                    
                 }
                 // CASE: ArrayList, LinkedList, Queue insert
                 else if (peek() == INSERT) {
@@ -911,10 +931,21 @@ uint64_t statement(int doit) {
                     consume();
                     int numElements = tokenPtr->token->value;
                     switch (kind) {
+                        case ARRAY: {
+                            char** newArray = (char**) malloc(numElements * sizeof(char*));
+                            consume();
+                            for (int i = 0; i < numElements; i++) {
+                                if (peek() != STRING) error();
+                                newArray[i] = tokenPtr->token->str;
+                                consume();
+                                if (peek() == COMMA) consume();
+                            }
+                            if (doit) setArray_str(id, newArray, numElements); 
+                            break;
+                        }
                         case ARRAYLIST: {
                             ArrayList* newArrayList = new_ArrayList();
                             newArrayList->size = numElements;
-
                             newArrayList->array_str = (char**)malloc(numElements*sizeof(char*));
                             consume();
                             newArrayList->kind = STRING;
@@ -923,9 +954,7 @@ uint64_t statement(int doit) {
                                 newArrayList->array_str[i] = tokenPtr->token->str;
                                 consume();
                                 if (peek() == COMMA) consume();
-
                             }
-
                             if (doit) setArrayList(id, newArrayList, numElements);
                             
                         }
@@ -1042,7 +1071,9 @@ uint64_t statement(int doit) {
                         // ID is an array
                         if (symbolTableNode->kind == ARRAY) {
                             arrayPtr = symbolTableNode->array; 
+                            array_strPtr = symbolTableNode->array_str;
                             sizeOfArray = symbolTableNode->numElements;
+                            type = (arrayPtr == NULL) ? STRING : INT;
                         }
                         // ID is an ArrayList
                         else if (symbolTableNode->kind == ARRAYLIST)
@@ -1054,30 +1085,17 @@ uint64_t statement(int doit) {
                             sizeOfArray = list->size;
                         }
 
-                        uint64_t formatStrSize;
-                        if (sizeOfArray == 0)
-                        {
-                            formatStrSize = 3;
-                        }
-                        else {
-                            formatStrSize = sizeOfArray + (sizeOfArray - 1) + 3; // size, commas, brackets, end
-                        }
+                        uint64_t loopAmount = (sizeOfArray == 0) ? 3 : sizeOfArray + (sizeOfArray - 1) + 3; // size, commas, brackets, end;
                         
-                        char formatStr[formatStrSize];
                         int index = 0;
-                        for (int i = 0; i < formatStrSize; i++) {
+                        for (int i = 0; i < loopAmount; i++) {
                             if (i == 0) printf("{");
-                            else if (i == formatStrSize - 2) printf("}");
-                            else if (i == formatStrSize - 1) printf("\n");
+                            else if (i == loopAmount - 2) printf("}");
+                            else if (i == loopAmount - 1) printf("\n");
                             else if (i % 2 == 0) printf(" ");
                             else {
-                                if (type == INT) {
-                                    printf("%ld", arrayPtr[index]);
-                                }
-                                else if (type == STRING) {
-                                    printf("%s", (char *)array_strPtr[index]);
-                                }
-                                
+                                if (type == INT) printf("%ld", arrayPtr[index]);
+                                else if (type == STRING) printf("%s", (char *)array_strPtr[index]);
                                 index++;
                             }
                         }
