@@ -484,6 +484,15 @@ uint64_t getIntValue(char* start, int length) {
     return res;
 }
 
+int checkKind(int cursor, int length, char* kind) {
+    if (cursor + length >= len) return 0;
+    for (int i = 0; i < length; i++) {
+        if (prog[cursor + i] != kind[i]) return 0;
+    }
+    if (isalnum(prog[cursor + length])) return 0;
+    return 1;
+}
+
 void setCurrentToken(void) {
     if (current.kind != NONE) {
         return;
@@ -552,60 +561,51 @@ void setCurrentToken(void) {
             current.length = 1;
         }
     }
-    else if (cursor + 2 < len && prog[cursor] == 'i' && prog[cursor + 1] == 'f' && !isalnum(prog[cursor + 2])) {
+    else if (checkKind(cursor, 2, "if")) {
         current.kind = IF;
         current.length = 2;
     }
-    else if (cursor + 3 < len && prog[cursor] == 'i' && prog[cursor + 1] == 'n'&& prog[cursor + 2] == 't' && !isalnum(prog[cursor + 3])) {
+    else if (checkKind(cursor, 3, "int")) {
         current.kind = TYPE_INT;
         current.length = 3;
     }
-    else if (cursor + 6 < len && prog[cursor] == 's' && prog[cursor + 1] == 't' && prog[cursor + 2] == 'r' && prog[cursor + 3] == 'i' && prog[cursor + 4] == 'n' &&
-            prog[cursor + 5] == 'g' && !isalnum(prog[cursor + 6])) {
+    else if (checkKind(cursor, 6, "string")) {
         current.kind = TYPE_STRING;
         current.length = 6;
     }
-    else if (cursor + 5 < len && prog[cursor] == 'a' && prog[cursor + 1] == 'r' && prog[cursor + 2] == 'r' && prog[cursor + 3] == 'a' && prog[cursor + 4] == 'y' && !isalnum(prog[cursor + 5])) {
+    else if (checkKind(cursor, 5, "array")) {
         current.kind = ARRAY;
         current.length = 5;
     }
-    else if (cursor + 3 < len && prog[cursor] == 'f' && prog[cursor + 1] == 'u' && prog[cursor + 2] == 'n' && !isalnum(prog[cursor + 3])) {
+    else if (checkKind(cursor, 3, "fun")) {
         current.kind = DEC;
         current.length = 3;
     }
-    else if (cursor + 4 < len && prog[cursor] == 'e' && prog[cursor + 1] == 'l' && prog[cursor + 2] == 's' && prog[cursor + 3] == 'e' &&
-             !isalnum(prog[cursor + 4])) {
+    else if (checkKind(cursor, 5, "else")) {
         current.kind = ELSE;
         current.length = 4;
     }
-    else if (cursor + 5 < len && prog[cursor] == 'p' && prog[cursor + 1] == 'r' && prog[cursor + 2] == 'i' &&
-             prog[cursor + 3] == 'n' && prog[cursor + 4] == 't' && !isalnum(prog[cursor + 5])) {
+    else if (checkKind(cursor, 5, "print")) {
         current.kind = PRINT;
         current.length = 5;
     }
-    else if (cursor + 10 < len && prog[cursor] == 'l' && prog[cursor + 1] == 'i' && prog[cursor + 2] == 'n' &&
-             prog[cursor + 3] == 'k' && prog[cursor + 4] == 'e' && prog[cursor + 5] == 'd' && prog[cursor + 6] == 'l' && prog[cursor + 7] == 'i' && prog[cursor + 8] == 's' && prog[cursor + 9] == 't' && !isalnum(prog[cursor + 10])) {
+    else if (checkKind(cursor, 10, "linkedlist")) {
         current.kind = LINKEDLIST;
         current.length = 10;
     }
-    else if (cursor + 5 < len && prog[cursor] == 'w' && prog[cursor + 1] == 'h' && prog[cursor + 2] == 'i' &&
-             prog[cursor + 3] == 'l' && prog[cursor + 4] == 'e' && !isalnum(prog[cursor + 5])) {
+    else if (checkKind(cursor, 5, "while")) {
         current.kind = WHILE;
         current.length = 5;
     }
-    else if (cursor + 9 < len && prog[cursor] == 'a' && prog[cursor + 1] == 'r' && prog[cursor + 2] == 'r' &&
-            prog[cursor + 3] == 'a' && prog[cursor + 4] == 'y' && prog[cursor + 5] == 'l' && prog[cursor + 6] == 'i' &&
-            prog[cursor + 7] == 's' && prog[cursor + 8] == 't' && !isalnum(prog[cursor + 9])) {
+    else if (checkKind(cursor, 9, "arraylist")) {
         current.kind = ARRAYLIST;
         current.length = 9;
     }
-    else if (cursor + 6 < len && prog[cursor] == 'i' && prog[cursor + 1] == 'n' && prog[cursor + 2] == 's' &&
-            prog[cursor + 3] == 'e' && prog[cursor + 4] == 'r' && prog[cursor + 5] == 't' && !isalnum(prog[cursor + 6])) {
+    else if (checkKind(cursor, 6, "insert")) {
         current.kind = INSERT;
         current.length = 6;
     }
-    else if (cursor + 6 < len && prog[cursor] == 'r' && prog[cursor + 1] == 'e' && prog[cursor + 2] == 'm' && prog[cursor + 3] == 'o' &&
-            prog[cursor + 4] == 'v' && prog[cursor + 5] == 'e' && !isalnum(prog[cursor + 6])) {
+    else if (checkKind(cursor, 6, "remove")) {
         current.kind = REMOVE;
         current.length = 6;
     }
