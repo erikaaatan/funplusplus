@@ -1041,6 +1041,7 @@ uint64_t statement(int doit) {
 
                         // ID is an array
                         if (symbolTableNode->kind == ARRAY) {
+                            
                             arrayPtr = symbolTableNode->array; 
                             sizeOfArray = symbolTableNode->numElements;
                         }
@@ -1076,6 +1077,9 @@ uint64_t statement(int doit) {
                                 }
                                 else if (type == STRING) {
                                     printf("%s", (char *)array_strPtr[index]);
+                                }
+                                else {
+                                     printf("%ld", arrayPtr[index]);
                                 }
                                 
                                 index++;
