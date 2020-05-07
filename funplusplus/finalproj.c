@@ -48,7 +48,9 @@ enum Kind {
     ARRAYLIST,
     INSERT,
     REMOVE,
-    SUB
+    SUB,
+    LESS,
+    GREAT
     
 };
 
@@ -468,6 +470,8 @@ enum Kind getOperatorKind(char chr) {
         case '+': return PLUS;
         case '}': return RBRACE;
         case ')': return RIGHT;
+        case '<': return LESS;
+        case '>': return GREAT;
         case '\0': return END;
         default: return NONE;
     }
@@ -690,7 +694,7 @@ uint64_t e1(void) {
         }
         consume();
         return v;
-    } else if (peek() == INT) {
+    }  else if (peek() == INT) {
         uint64_t v = getInt();
         consume();
         return v;
@@ -699,7 +703,30 @@ uint64_t e1(void) {
         return (uint64_t) tokenPtr->token->str;
     }*/else if (peek() == ID) {
         char *id = getId();
+        struct Node* symbolTableNode = getNode(id);
         consume();
+        // Array Indexing for arrays and arraylists
+        if (peek() == LBRACKET) {
+            consume();
+            uint64_t index = expression();
+            if (peek() != RBRACKET) error();
+            consume();
+
+            // ONly for int array / arraylists
+            if (symbolTableNode->kind == ARRAY) {
+                // String array
+                if (index >= 0 && index < symbolTableNode->numElements) {
+                    //printf("index: %ld\n", index);
+                    return symbolTableNode->array[index];
+                }    
+            }
+            else if (symbolTableNode->kind == ARRAYLIST && symbolTableNode->arraylist->kind == INT) {
+                if (index >= 0 && index < symbolTableNode->arraylist->size) {
+                    //printf("index: %ld\n", index);
+                    return symbolTableNode->arraylist->array[index];
+                }
+            }
+        }
         return get(id);
     } /*else if (peek() == STRING) {
         consume();
@@ -749,6 +776,20 @@ uint64_t e4(void) {
     while (peek() == EQEQ) {
         consume();
         value = value == e3();
+    }
+    while (peek() == LESS) {
+        consume();
+        if (value < e3()) {
+            return 1;
+        }
+        return 0;
+    }
+    while (peek() == GREAT) {
+        consume();
+        if (value > e3()) {
+            return 1;
+        }
+        return 0;
     }
     return value;
 }
@@ -1039,6 +1080,7 @@ uint64_t statement(int doit) {
 
                         // ID is an array
                         if (symbolTableNode->kind == ARRAY) {
+                            
                             arrayPtr = symbolTableNode->array; 
                             array_strPtr = symbolTableNode->array_str;
                             sizeOfArray = symbolTableNode->numElements;
@@ -1063,8 +1105,11 @@ uint64_t statement(int doit) {
                             else if (i == loopAmount - 1) printf("\n");
                             else if (i % 2 == 0) printf(" ");
                             else {
+
+                                
                                 if (type == INT) printf("%ld", arrayPtr[index]);
                                 else if (type == STRING) printf("%s", (char *)array_strPtr[index]);
+                              
                                 index++;
                             }
                         }
