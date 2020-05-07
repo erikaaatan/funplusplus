@@ -1077,6 +1077,7 @@ uint64_t statement(int doit) {
                                 else if (type == STRING) {
                                     printf("%s", (char *)array_strPtr[index]);
                                 }
+                                    
                                 
                                 index++;
                             }
