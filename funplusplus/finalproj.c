@@ -551,12 +551,12 @@ void setCurrentToken(void) {
         current.length = 6;
     }
     else if (cursor + 5 < len && prog[cursor] == 'q' && prog[cursor + 1] == 'u' && prog[cursor + 2] == 'e' && prog [cursor + 3] == 'u' && prog[cursor + 4] == 'e' && !isalnum(prog[cursor + 5])) {
-        current.kind == QUEUE; 
-	current.length == 5;
+        current.kind = QUEUE; 
+	    current.length = 5;
     }
     else if (cursor + 4 < len && prog[cursor] == 'p' && prog[cursor + 1] == 'e' && prog[cursor + 2] == 'e' && prog [cursor + 3] == 'k' && !isalnum(prog[cursor + 4])) {
-        current.kind == PEEK;
-        current.length == 4;
+        current.kind = PEEK;
+        current.length = 4;
     }
     else {
         // it's an identifier or function
@@ -1213,9 +1213,9 @@ char* stringifyKind(enum Kind kind) {
         case LBRACKET: return "[";
         case RBRACKET: return "]";
         case SUB: return "sub";
-	case QUEUE: return "queue";
-	case PEEK: return "peek";
-	case ADD: return "add";        
+	    case QUEUE: return "queue";
+	    case PEEK: return "peek";
+	    case ADD: return "add";        
     }
 }
 
@@ -1228,16 +1228,13 @@ int main(int argc, char* argv[]) {
 
     pretokenize();
 
-/*
+    /*
     do {
         printf("%s\n", stringifyKind(tokenPtr->token->kind));
         consume();
     }
     while (tokenPtr->token->kind != END);
-*/
-
-
-    
+    */
 
     interpret(prog);
 
