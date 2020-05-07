@@ -254,6 +254,8 @@ void removeLinkedList(struct Node* symbolTableNode, uint64_t index) {
 //QUEUE REMOVE 
 void removeQueue(struct Node* symbolTableNode)
 {
+    printf("%d\n", symbolTableNode->numElements);
+	
     if (symbolTableNode->numElements == 0)
     {
         error(); 
@@ -262,19 +264,21 @@ void removeQueue(struct Node* symbolTableNode)
     if (symbolTableNode->numElements == 1)
     {
 	symbolTableNode->head = symbolTableNode->head->next;
+	symbolTableNode->numElements -=1;
+	return; 
     }
 
     struct LinkedList* previous = symbolTableNode->head;
     struct LinkedList* current = previous->next;
 
-    while (current->next != symbolTableNode->tail)
+    while (current != symbolTableNode->tail)
     {
         previous = current; 
 	current = current->next;
     }
 
-    current->next = current->next->next; 
-
+    previous->next = current->next;
+    symbolTableNode->tail = previous;
     symbolTableNode->numElements -= 1;
 }
 
@@ -339,6 +343,22 @@ void setLinkedList(char *id, struct LinkedList* head, struct LinkedList* tail, i
     current->end = 1;
     current->numElements = numElements;
     current->kind = LINKEDLIST;
+}
+
+void setQueue(char *id, struct LinkedList* head, struct LinkedList* tail, int numElements) {
+    struct Node* current = root;
+    for (int i = 0; i < strlen(id); i++) {
+        int pos = getAlNumPos(id[i]);
+        if (current->children[pos] == NULL) {
+            current->children[pos] = newNode();
+        }
+        current = current->children[pos];
+    }
+    current->head = head;
+    current->tail = tail;
+    current->end = 1;
+    current->numElements = numElements;
+    current->kind = QUEUE;
 }
 
 void setArrayAtIndex(char *id, uint64_t value, int index) {
@@ -550,13 +570,18 @@ void setCurrentToken(void) {
         current.kind = REMOVE;
         current.length = 6;
     }
+    else if (cursor + 3 < len && prog[cursor] == 'a' && prog[cursor + 1] == 'd' && prog[cursor + 2] == 'd' &&
+             !isalnum(prog[cursor + 3])) {
+        current.kind = ADD;
+        current.length = 3;
+    }
     else if (cursor + 5 < len && prog[cursor] == 'q' && prog[cursor + 1] == 'u' && prog[cursor + 2] == 'e' && prog [cursor + 3] == 'u' && prog[cursor + 4] == 'e' && !isalnum(prog[cursor + 5])) {
-        current.kind == QUEUE; 
-	current.length == 5;
+        current.kind = QUEUE; 
+	current.length = 5;
     }
     else if (cursor + 4 < len && prog[cursor] == 'p' && prog[cursor + 1] == 'e' && prog[cursor + 2] == 'e' && prog [cursor + 3] == 'k' && !isalnum(prog[cursor + 4])) {
-        current.kind == PEEK;
-        current.length == 4;
+        current.kind = PEEK;
+        current.length = 4;
     }
     else {
         // it's an identifier or function
@@ -795,16 +820,21 @@ uint64_t statement(int doit) {
 		else if (peek() == ADD) {
 		    consume();
 		    uint64_t item = expression(); 
-		    if (symbolTableNode->kind == QUEUE)
-		    {
-		        if (doit) insertLinkedList(symbolTableNode, item);
-		    }
+		    if (doit) insertLinkedList(symbolTableNode, item);
 		}
                 // CASE: ArrayList, LinkedList, Queue Remove
                 else if (peek() == REMOVE) {
                     consume();
-                    uint64_t index = expression();
-                    if (symbolTableNode->kind == ARRAYLIST) {
+		    uint64_t index = 0;  
+		    if (symbolTableNode->kind == QUEUE)
+		    {
+			if (doit) removeQueue(symbolTableNode);
+		    }
+		    else 
+		    {
+		        index = expression();
+		    }
+		    if (symbolTableNode->kind == ARRAYLIST) {
                         if (doit) removeArrayList(symbolTableNode->arraylist, index);
                         /*
                         if (peek() == INT) {
@@ -829,9 +859,6 @@ uint64_t statement(int doit) {
                     else if (symbolTableNode->kind == LINKEDLIST) {
                         if (doit) removeLinkedList(symbolTableNode, index);
                     }
-		    else if (symbolTableNode->kind == QUEUE) {
-		    	if (doit) removeQueue(symbolTableNode);
-		    }
                 }
                 return 1;
             }
@@ -903,7 +930,7 @@ uint64_t statement(int doit) {
                             //    tail->next = newNode;
                             //    tail = newNode;
                             //}
-                            if (doit) setLinkedList(id, head, tail, 1);
+                            if (doit) setQueue(id, head, tail, 1);
                             break;	    
 			}
                    }
