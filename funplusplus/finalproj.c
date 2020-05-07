@@ -258,8 +258,6 @@ void removeLinkedList(struct Node* symbolTableNode, uint64_t index) {
 //QUEUE REMOVE 
 void removeQueue(struct Node* symbolTableNode)
 {
-    printf("%d\n", symbolTableNode->numElements);
-	
     if (symbolTableNode->numElements == 0)
     {
         error(); 
@@ -284,6 +282,18 @@ void removeQueue(struct Node* symbolTableNode)
     previous->next = current->next;
     symbolTableNode->tail = previous;
     symbolTableNode->numElements -= 1;
+}
+
+//QUEUE Peek 
+
+uint64_t peekQueue(struct Node* symbolTableNode)
+{
+    if (symbolTableNode->numElements == 0)
+    {
+        error(); 
+    }
+
+    return symbolTableNode->tail->data;
 }
 
 struct Node* newNode(void) {
@@ -748,7 +758,17 @@ uint64_t e1(void) {
     } else if (peek() == ID) {
         char *id = getId();
         consume();
-        return get(id);
+	if (peek() == PEEK)
+	{ 
+	    struct Node* symbolTableNode = getNode(id);
+	    uint64_t returnVal = peekQueue(symbolTableNode);
+	    consume();
+	    return returnVal;
+	}
+	else 
+	{
+            return get(id);
+	}
     } else if (peek() == DEC) {
         consume();
         uint64_t v = tokenPtr->token->index;
@@ -810,11 +830,11 @@ void moveTokenPtrToIndex(int index) {
 
 uint64_t statement(int doit) {
     switch(peek()) {
-        case ID: {
+	case ID: { 
             char *id = getId();
             struct Node* symbolTableNode;
             consume();
-
+		
             // Must be brackets or insert / remove
             if (peek() != EQ) {
                 
@@ -889,20 +909,18 @@ uint64_t statement(int doit) {
                 }
                 return 1;
             }
+
             // Check for equals after ID
             if (peek() != EQ) error();
+
             consume();
+
             if (peek() == ARRAY || peek() == LINKEDLIST || peek() == ARRAYLIST || peek() == QUEUE) {
-                printf("about to consume");
+
 		enum Kind kind = peek();
+	
                 consume();
-		printf("%s",stringKind(peek()));
-		if (peek() == PEEK) {
-		    printf("trying to run peek code");
-		    uint64_t v = 542;
-                    if (doit) set(id, v);
-		}
-		else if (peek() == TYPE_INT) {
+		if (peek() == TYPE_INT) {
                     consume();
                     int numElements = tokenPtr->token->value;
 
@@ -979,9 +997,8 @@ uint64_t statement(int doit) {
                 }
                 else {
                     uint64_t v = expression();
-                    if (doit) set(id, v);
-                }
-            
+		    if (doit) set(id, v); 
+		}
             }
             return 1;
         }
@@ -1041,17 +1058,17 @@ uint64_t statement(int doit) {
         case PRINT: {
             consume();
             if (doit) {
-            
                 // Print expression
                 if (peek() != ID) printf("%"PRIu64"\n",expression());
                 // Print ID value
                 else {
-                    char* id = getId();
+                    char* id = getId(); 
+
                     struct Node* symbolTableNode = getNode(id);
 
                     // Print INT ID
                     if (symbolTableNode->kind == INT) {
-                        printf("%ld\n", get(id));
+			printf("%ld\n", get(id));
                         consume();
                     }
                     else if (symbolTableNode->kind == STRING) {
