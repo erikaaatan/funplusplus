@@ -356,6 +356,7 @@ struct Node* getNode(char *id) {
 }
 
 uint64_t get(char *id) {
+    if (!inSymbolTable(id)) return 0;
     return getNode(id)->data;
 }
 
@@ -996,7 +997,6 @@ uint64_t statement(int doit) {
         case PRINT: {
             consume();
             if (doit) {
-            
                 // Print expression
                 if (peek() != ID) printf("%"PRIu64"\n",expression());
                 // Print ID value
@@ -1004,8 +1004,13 @@ uint64_t statement(int doit) {
                     char* id = getId();
                     struct Node* symbolTableNode = getNode(id);
 
+                    if (symbolTableNode == NULL) {
+                        // the id is not in the symbol table yet
+                        printf("0\n");
+                        consume();
+                    }
                     // Print INT ID
-                    if (symbolTableNode->kind == INT) {
+                    else if (symbolTableNode->kind == INT) {
                         printf("%ld\n", get(id));
                         consume();
                     }
@@ -1176,6 +1181,7 @@ void pretokenize(void) {
     while (tail->token->kind != END);
 }
 
+// use for debugging
 char* stringifyKind(enum Kind kind) {
     switch (kind) {
         case END: return "end";
@@ -1227,12 +1233,6 @@ int main(int argc, char* argv[]) {
     }
     while (tokenPtr->token->kind != END);
 */
-
-
-
-
-    
-
     interpret(prog);
 
     return 0;
