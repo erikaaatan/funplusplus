@@ -458,6 +458,41 @@ enum Kind getOperatorKind(char chr) {
     }
 }
 
+char* stringKind(enum Kind kind) {
+    switch (kind) {
+        case END: return "end";
+        case ELSE: return "else";
+        case EQ: return "eq";
+        case EQEQ: return "eqeq";
+        case ID: return "id";
+        case IF: return "if";
+        case INT: return "int";
+        case LBRACE: return "lbrace";
+        case LEFT: return "left";
+        case MUL: return "Mul";
+        case NONE: return "none";
+        case PLUS: return "plus";
+        case PRINT: return "print";
+        case RBRACE: return "rbrace";
+        case RIGHT: return "right";
+        case WHILE: return "while";
+        case FUN: return "fun";
+        case DEC: return "dec";
+        case ARRAY: return "array";
+        case TYPE_INT: return "type_int";
+        case COMMA: return "comma";
+        case ARRAYLIST: return "arraylist";
+        case INSERT: return "insert";
+        case REMOVE: return "remove";
+        case LBRACKET: return "[";
+        case RBRACKET: return "]";
+        case SUB: return "sub";
+            case QUEUE: return "queue";
+            case PEEK: return "peek";
+            case ADD: return "add";
+    }
+}
+
 uint64_t getIntValue(char* start, int length) {
     uint64_t res = 0;
     for (int i = 0; i < length; i++) {
@@ -822,6 +857,9 @@ uint64_t statement(int doit) {
 		    uint64_t item = expression(); 
 		    if (doit) insertLinkedList(symbolTableNode, item);
 		}
+		//else if (peek() == PEEK) {
+		//    consume(); 
+		//}
                 // CASE: ArrayList, LinkedList, Queue Remove
                 else if (peek() == REMOVE) {
                     consume();
@@ -866,9 +904,16 @@ uint64_t statement(int doit) {
             if (peek() != EQ) error();
             consume();
             if (peek() == ARRAY || peek() == LINKEDLIST || peek() == ARRAYLIST || peek() == QUEUE) {
-                enum Kind kind = peek();
+                printf("about to consume");
+		enum Kind kind = peek();
                 consume();
-                if (peek() == TYPE_INT) {
+		printf("%s",stringKind(peek()));
+		if (peek() == PEEK) {
+		    printf("trying to run peek code");
+		    uint64_t v = 542;
+                    if (doit) set(id, v);
+		}
+		else if (peek() == TYPE_INT) {
                     consume();
                     int numElements = tokenPtr->token->value;
 
