@@ -1240,9 +1240,9 @@ char* stringifyKind(enum Kind kind) {
         case LBRACKET: return "[";
         case RBRACKET: return "]";
         case SUB: return "sub";
-	case QUEUE: return "queue";
-	case PEEK: return "peek";
-	case ADD: return "add";        
+	    case QUEUE: return "queue";
+	    case PEEK: return "peek";
+	    case ADD: return "add";        
     }
 }
 
@@ -1255,16 +1255,13 @@ int main(int argc, char* argv[]) {
 
     pretokenize();
 
-/*
+    /*
     do {
         printf("%s\n", stringifyKind(tokenPtr->token->kind));
         consume();
     }
     while (tokenPtr->token->kind != END);
-*/
-
-
-    
+    */
 
     interpret(prog);
 
