@@ -1,6 +1,6 @@
 x = arraylist int 2 1,2
 print x
-y = 3
+y = 2
 stop = 10
 x[0] = 9
 print stop
@@ -17,10 +17,12 @@ while (stop == 0 == 0)
     stop = stop - 1
 }
 print x
+x = arraylist string 2 "hello", "world"
+t = "there"
+x insert t
 x remove 0
-x insert 5
-x insert 6
 print x
+
 
 
 
