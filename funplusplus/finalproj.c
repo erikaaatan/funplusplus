@@ -345,16 +345,6 @@ int inSymbolTable(char *id) {
     return 1;
 }
 
-uint64_t get(char *id) {
-    if (!inSymbolTable(id)) return 0;
-    struct Node* current = root;
-    for (int i = 0; i < strlen(id); i++) {
-        int pos = getAlNumPos(id[i]);
-        current = current->children[pos];
-    }
-    return current->data;
-}
-
 struct Node* getNode(char *id) {
     if (!inSymbolTable(id)) return 0;
     struct Node* current = root;
@@ -365,7 +355,11 @@ struct Node* getNode(char *id) {
     return current;
 }
 
-void setLinkedList(char *id, struct LinkedList* head, struct LinkedList* tail, int numElements) {
+uint64_t get(char *id) {
+    return getNode(id)->data;
+}
+
+struct Node* getNewNode(char *id) {
     struct Node* current = root;
     for (int i = 0; i < strlen(id); i++) {
         int pos = getAlNumPos(id[i]);
@@ -374,6 +368,11 @@ void setLinkedList(char *id, struct LinkedList* head, struct LinkedList* tail, i
         }
         current = current->children[pos];
     }
+    return current;
+}
+
+void setLinkedList(char *id, struct LinkedList* head, struct LinkedList* tail, int numElements) {
+    struct Node* current = getNewNode(id);    
     current->head = head;
     current->tail = tail;
     current->end = 1;
@@ -406,14 +405,7 @@ void setArrayAtIndex(char *id, uint64_t value, char *str, int index) {
 }
 // Set Trie Node Methods for Data structure types
 void setArray(char *id, uint64_t* array, int numElements) {
-    struct Node* current = root;
-    for (int i = 0; i < strlen(id); i++) {
-        int pos = getAlNumPos(id[i]);
-        if (current->children[pos] == NULL) {
-            current->children[pos] = newNode();
-        }
-        current = current->children[pos];
-    }
+    struct Node* current = getNewNode(id); 
     current->array = array;
     current->end = 1;
     current->numElements = numElements;
@@ -421,14 +413,7 @@ void setArray(char *id, uint64_t* array, int numElements) {
 }
 
 void setArray_str(char *id, char** array, int numElements) {
-    struct Node* current = root;
-    for (int i = 0; i < strlen(id); i++) {
-        int pos = getAlNumPos(id[i]);
-        if (current->children[pos] == NULL) {
-            current->children[pos] = newNode();
-        }
-        current = current->children[pos];
-    }
+    struct Node* current = getNewNode(id); 
     current->array_str = array;
     current->end = 1;
     current->numElements = numElements;
@@ -436,14 +421,7 @@ void setArray_str(char *id, char** array, int numElements) {
 }
 
 void setArrayList(char *id, ArrayList* arraylist, int numElements) {
-    struct Node* current = root;
-    for (int i = 0; i < strlen(id); i++) {
-        int pos = getAlNumPos(id[i]);
-        if (current->children[pos] == NULL) {
-            current->children[pos] = newNode();
-        }
-        current = current->children[pos];
-    }
+    struct Node* current = getNewNode(id);
     current->arraylist = arraylist;
     current->end = 1;
     current->numElements = numElements;
@@ -451,28 +429,14 @@ void setArrayList(char *id, ArrayList* arraylist, int numElements) {
 }
 
 void set(char *id, uint64_t value) {
-    struct Node* current = root;
-    for (int i = 0; i < strlen(id); i++) {
-        int pos = getAlNumPos(id[i]);
-        if (current->children[pos] == NULL) {
-            current->children[pos] = newNode();
-        }
-        current = current->children[pos];
-    }
+    struct Node* current = getNewNode(id); 
     current->data = value;
     current->end = 1;
     current->kind = INT;
 }
 
 void set_str(char *id, char *str) {
-    struct Node* current = root;
-    for (int i = 0; i < strlen(id); i++) {
-        int pos = getAlNumPos(id[i]);
-        if (current->children[pos] == NULL) {
-            current->children[pos] = newNode();
-        }
-        current = current->children[pos];
-    }
+    struct Node* current = getNewNode(id); 
     current->str = str;
     current->end = 1;
     current->kind = STRING;
