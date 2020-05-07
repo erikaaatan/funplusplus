@@ -121,6 +121,7 @@ char **resizeDown_str(char **array_str, uint64_t oldSize);
     // Bounds Checking
     if (oldSize == 0 | index >= oldSize | index < 0)
     {
+        printf("OUT OF BOUNDS\n");
         error();
     }
     uint64_t newSize = oldSize - 1;
@@ -257,7 +258,11 @@ char* intToString(uint64_t num)
     
 }
 
-
+typedef struct Array{
+    uint64_t* array_int;
+    char** array_str;
+    enum Kind kind;
+} Array;
 // ---------- Trie Node ------------
 struct Node {
     enum Kind kind;
@@ -265,8 +270,7 @@ struct Node {
     struct LinkedList* head;
     struct LinkedList* tail;
     ArrayList* arraylist;
-    uint64_t* array;
-    char** array_str;
+    Array* array;
     int numElements;
     char* ptr;
     char* str;
@@ -299,6 +303,7 @@ void insertLinkedList(struct Node* symbolTableNode, uint64_t item) {
 void removeLinkedList(struct Node* symbolTableNode, uint64_t index) {
     // Bounds Checking
     if (index >= symbolTableNode->numElements | index < 0) {
+        printf("OUT OF BOUNDS\n");
         error();
     }
 
@@ -386,38 +391,49 @@ void setLinkedList(char *id, struct LinkedList* head, struct LinkedList* tail, i
 void setArrayAtIndex(char *id, uint64_t value, char *str, int index) {
     struct Node* symbolTableNode = getNode(id);
     enum Kind type = symbolTableNode->kind;
-    uint64_t* array;
+    Array* array;
+    uint64_t* arrayPtr;
     char** array_str;
     if (type == ARRAY) {
         array = symbolTableNode->array;
-        array_str = symbolTableNode->array_str;
+        arrayPtr = array->array_int;
+        array_str = array->array_str;
         // Bounds Checking
-        if (index < 0 | index >= symbolTableNode->numElements) error(); 
+        if (index < 0 | index >= symbolTableNode->numElements) {
+            printf("OUT OF BOUNDS\n");
+            error(); 
+        }
         
-        if (array == NULL) array_str[index] = str;
-        else array[index] = value;
+        if (array->kind == STRING) array_str[index] = str;
+        else arrayPtr[index] = value;
     }
     else if (type == ARRAYLIST) {
-        array = symbolTableNode->arraylist->array;
+        arrayPtr = symbolTableNode->arraylist->array;
         array_str = symbolTableNode->arraylist->array_str;
         // Bounds Checking
-        if (index < 0 || index >= symbolTableNode->arraylist->size) error();
+        if (index < 0 || index >= symbolTableNode->arraylist->size) {
+            printf("OUT OF BOUNDS\n");
+            error();
+        }
+
+
+    if (symbolTableNode->arraylist->kind == STRING) array_str[index] = str;
+    else arrayPtr[index] = value;
     }
-    if (array == NULL) array_str[index] = str;
-    else array[index] = value;
 }
 // Set Trie Node Methods for Data structure types
-void setArray(char *id, uint64_t* array, int numElements) {
+void setArray(char *id, Array* array, int numElements) {
     struct Node* current = getNewNode(id); 
     current->array = array;
     current->end = 1;
+ 
     current->numElements = numElements;
     current->kind = ARRAY;
 }
 
 void setArray_str(char *id, char** array, int numElements) {
     struct Node* current = getNewNode(id); 
-    current->array_str = array;
+    current->array->array_str = array;
     current->end = 1;
     current->numElements = numElements;
     current->kind = ARRAY;
@@ -713,14 +729,14 @@ uint64_t e1(void) {
             consume();
 
             // ONly for int array / arraylists
-            if (symbolTableNode->kind == ARRAY) {
+            if (symbolTableNode != NULL && symbolTableNode->kind == ARRAY && symbolTableNode->array->kind == INT) {
                 // String array
                 if (index >= 0 && index < symbolTableNode->numElements) {
                     //printf("index: %ld\n", index);
-                    return symbolTableNode->array[index];
+                    return symbolTableNode->array->array_int[index];
                 }    
             }
-            else if (symbolTableNode->kind == ARRAYLIST && symbolTableNode->arraylist->kind == INT) {
+            else if (symbolTableNode != NULL && symbolTableNode->kind == ARRAYLIST && symbolTableNode->arraylist->kind == INT) {
                 if (index >= 0 && index < symbolTableNode->arraylist->size) {
                     //printf("index: %ld\n", index);
                     return symbolTableNode->arraylist->array[index];
@@ -741,6 +757,7 @@ uint64_t e1(void) {
         return v;
     }
     else {
+        printf("E1 UNRECOGNIZED TYPE\n");
         error();
         return 0;
     }
@@ -816,7 +833,8 @@ uint64_t statement(int doit) {
             if (peek() != EQ) {
                 
                 // Get node in symbol table 
-                symbolTableNode = getNode(id);  
+                symbolTableNode = getNode(id);
+
 
                 // Array and ArrayList indexing
                 if (peek() == LBRACKET) {
@@ -832,28 +850,40 @@ uint64_t statement(int doit) {
                     uint64_t v;
                     if (peek() == STRING) {
                         str = tokenPtr->token->str;
+                        if (symbolTableNode != NULL && symbolTableNode->kind == ARRAY && symbolTableNode->array->kind == INT) {
+                            printf("TYPE CHECK: ARRAY INDEXING\n");
+                            error();
+                        }
                         consume();
                     }
-                    else v = expression();
+                    else {
+                        v = expression();
+                        if (symbolTableNode != NULL && symbolTableNode->kind == ARRAY && symbolTableNode->array->kind == STRING) {
+                            printf("TYPE CHECK: ARRAY INDEXING\n");
+                            error();
+                        }
+                    }
 
                     // Set array for arrays and arraylists
+                    
                     if (doit) setArrayAtIndex(id, v, str, index);
                     
                 }
                 // CASE: ArrayList, LinkedList, Queue insert
-                else if (peek() == INSERT) {
+                else if (symbolTableNode != NULL && peek() == INSERT || doit == 0) {
+                    if (doit == 0 && symbolTableNode == NULL) {
+                        consume();
+                        consume();
+                        return 1;
+                    }
                     consume();
                     uint64_t item;
                     char *item_str;
+                    if (peek() != STRING) item = expression();
+                    item_str = tokenPtr->token->str;
+                    if (item_str != NULL) consume();
                     if (symbolTableNode->kind == ARRAYLIST) {
-                        // TODO: Type checking with data structure
-                        if (symbolTableNode->arraylist->kind == STRING) {
-                            item_str = tokenPtr->token->str;
-                            consume();
-                        }
-                        else if (symbolTableNode->arraylist->kind == INT) {
-                            item = expression();
-                        }
+
                         if (doit) insertArrayList(symbolTableNode->arraylist, item, item_str);
 
                     }
@@ -862,7 +892,12 @@ uint64_t statement(int doit) {
                     }
                 }
                 // CASE: ArrayList, LinkedList, Queue Remove
-                else if (peek() == REMOVE) {
+                else if (symbolTableNode != NULL && peek() == REMOVE || doit == 0) {
+                    if (doit == 0 && symbolTableNode == NULL) {
+                        consume();
+                        consume();
+                        return 1;
+                    }
                     consume();
                     uint64_t index = expression();
                     if (symbolTableNode->kind == ARRAYLIST) {
@@ -883,17 +918,33 @@ uint64_t statement(int doit) {
                 if (peek() == TYPE_INT) {
                     consume();
                     int numElements = tokenPtr->token->value;
+                    struct Node* symbolTableNode = getNode(id);
 
                     switch (kind) {
                         case ARRAY: {
                             uint64_t* newArray = (uint64_t*) malloc(numElements * sizeof(uint64_t));
                             consume();
+
+                            Array* new_array = (Array*)malloc(sizeof(Array));
+
                             for (int i = 0; i < numElements; i++) {
                                 newArray[i] = tokenPtr->token->value;
                                 consume();
                                 if (peek() == COMMA) consume();
                             }
-                            if (doit) setArray(id, newArray, numElements); 
+
+                            new_array->kind = INT;
+                            new_array->array_int = newArray;
+                            
+                            if (symbolTableNode != NULL) {
+                                if (symbolTableNode->kind != ARRAY || (symbolTableNode->kind == ARRAY && 
+                                symbolTableNode->array == NULL)) {
+                                    printf("TYPE_ERROR: %s\n", original + tokenPtr->token->index);
+                                    error();
+                                }
+                            }
+
+                            if (doit) setArray(id, new_array, numElements); 
                             break;
                         }
                         case LINKEDLIST: {
@@ -911,6 +962,8 @@ uint64_t statement(int doit) {
                                 tail->next = newNode;
                                 tail = newNode;
                             }
+                            // Also need to check type of linkedlist 
+                            //if (symbolTableNode != NULL && symbolTableNode->kind != LINKEDLIST) error();
                             if (doit) setLinkedList(id, head, tail, numElements);
                             break;
                         }
@@ -928,7 +981,15 @@ uint64_t statement(int doit) {
                                 consume();
                                 if (peek() == COMMA) consume();
                             }
-
+                            if (symbolTableNode != NULL) {
+                                if (symbolTableNode->kind != ARRAYLIST || (symbolTableNode->kind == ARRAYLIST &&
+                                symbolTableNode->arraylist->kind != INT)) {
+                                    printf("TYPE_ERROR: \n");
+                                    error();
+                                }
+                            }
+                                
+                            
                             if (doit) setArrayList(id, newArrayList, numElements);
                         }
                    }
@@ -936,17 +997,32 @@ uint64_t statement(int doit) {
                 else if (peek() == TYPE_STRING) {
                     consume();
                     int numElements = tokenPtr->token->value;
+                    struct Node* symbolTableNode = getNode(id);
                     switch (kind) {
                         case ARRAY: {
                             char** newArray = (char**) malloc(numElements * sizeof(char*));
                             consume();
+                            Array* new_array = (Array*)malloc(sizeof(Array));
+                            
+
                             for (int i = 0; i < numElements; i++) {
                                 if (peek() != STRING) error();
                                 newArray[i] = tokenPtr->token->str;
                                 consume();
                                 if (peek() == COMMA) consume();
                             }
-                            if (doit) setArray_str(id, newArray, numElements); 
+                            new_array->array_str = newArray;
+                            new_array->kind = STRING;
+                            // Type Checking
+                            if (symbolTableNode != NULL) {
+                                if (symbolTableNode->kind != ARRAY || (symbolTableNode->kind == ARRAY && 
+                                symbolTableNode->array->kind != STRING)) {
+                                    printf("TYPE_ERROR: \n");
+                                    error();
+                                }
+                            }
+
+                            if (doit) setArray(id, new_array, numElements); 
                             break;
                         }
                         case ARRAYLIST: {
@@ -961,6 +1037,15 @@ uint64_t statement(int doit) {
                                 consume();
                                 if (peek() == COMMA) consume();
                             }
+                            // Type Checking
+                            if (symbolTableNode != NULL) {
+                                if (symbolTableNode->kind != ARRAYLIST || (symbolTableNode->kind == ARRAYLIST && 
+                                symbolTableNode->arraylist->kind != STRING)) {
+                                    printf("TYPE_ERROR: \n");
+                                    error();
+                                }
+                            }
+
                             if (doit) setArrayList(id, newArrayList, numElements);
                             
                         }
@@ -1013,7 +1098,8 @@ uint64_t statement(int doit) {
         case WHILE: {
             consume();
             int expressionIndex = tokenPtr->token->index;
-            uint64_t v = expression();
+            uint64_t v = 0;
+            v = expression();
             while (v && doit) {
                 statement(doit);
                 // the statement was evaluated to true
@@ -1081,10 +1167,11 @@ uint64_t statement(int doit) {
                         // ID is an array
                         if (symbolTableNode->kind == ARRAY) {
                             
-                            arrayPtr = symbolTableNode->array; 
-                            array_strPtr = symbolTableNode->array_str;
+                            Array* array = symbolTableNode->array;
+                            arrayPtr = array->array_int;
+                            array_strPtr = array->array_str;
                             sizeOfArray = symbolTableNode->numElements;
-                            type = (arrayPtr == NULL) ? STRING : INT;
+                            type = array->kind;
                         }
                         // ID is an ArrayList
                         else if (symbolTableNode->kind == ARRAYLIST)
@@ -1135,8 +1222,12 @@ void seq(int doit) {
 
 void program(void) {
     seq(1);
-    if (peek() != END)
+    if (peek() != END) {
+        printf("CONSUME ERROR\n");
+        //printf("%d\n", peek());
         error();
+    }
+        
 }
 
 void interpret(char *prog) {
@@ -1258,6 +1349,8 @@ char* stringifyKind(enum Kind kind) {
         case SUB: return "sub";
         case TYPE_STRING: return "type_string";
         case STRING: return "string";
+        case LESS: return "<";
+        case GREAT: return ">";
         
     }
 }
@@ -1271,6 +1364,7 @@ int main(int argc, char* argv[]) {
 
     pretokenize();
 
+
 /*
     do {
         printf("%s\n", stringifyKind(tokenPtr->token->kind));
@@ -1278,7 +1372,11 @@ int main(int argc, char* argv[]) {
     }
     while (tokenPtr->token->kind != END);
 */
+    //seq(0);
+    //tokenPtr = head;
     interpret(prog);
+
+    
 
     return 0;
 }
