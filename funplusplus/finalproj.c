@@ -333,29 +333,25 @@ void removeLinkedList(struct Node* symbolTableNode, uint64_t index) {
     symbolTableNode->numElements -= 1;
 }
 
-//QUEUE REMOVE 
-void removeQueue(struct Node* symbolTableNode)
-{
-    if (symbolTableNode->numElements == 0)
-    {
-        printf("OUT OF BOUNDS\n"); 
+
+void removeQueue(struct Node* symbolTableNode) {
+    if (symbolTableNode->numElements == 0) {
+        printf("OUT OF BOUNDS\n");
         error(); 
     }
 
-    if (symbolTableNode->numElements == 1)
-    {
-	symbolTableNode->head = symbolTableNode->head->next;
-	symbolTableNode->numElements -=1;
-	return; 
+    if (symbolTableNode->numElements == 1) {
+        symbolTableNode->head = symbolTableNode->head->next;
+        symbolTableNode->numElements -=1;
+        return; 
     }
 
     struct LinkedList* previous = symbolTableNode->head;
     struct LinkedList* current = previous->next;
 
-    while (current != symbolTableNode->tail)
-    {
+    while (current != symbolTableNode->tail) {
         previous = current; 
-	current = current->next;
+	    current = current->next;
     }
 
     previous->next = current->next;
@@ -365,10 +361,9 @@ void removeQueue(struct Node* symbolTableNode)
 
 //QUEUE Peek 
 
-uint64_t peekQueue(struct Node* symbolTableNode)
-{
-    if (symbolTableNode->numElements == 0)
-    {
+uint64_t peekQueue(struct Node* symbolTableNode) {
+    if (symbolTableNode->numElements == 0) {
+        printf("OUT OF BOUNDS\n");
         error(); 
     }
 
@@ -779,6 +774,7 @@ uint64_t e1(void) {
         consume();
         uint64_t v = expression();
         if (peek() != RIGHT) {
+            printf("MISSING RIGHT PARENTHESIS\n");
             error();
         }
         consume();
@@ -822,7 +818,10 @@ uint64_t e1(void) {
 	else if (peek() == LBRACKET) {
             consume();
             uint64_t index = expression();
-            if (peek() != RBRACKET) error();
+            if (peek() != RBRACKET) {
+                printf("MISSING RIGHT BRACKET\n");
+                error();
+            }
             consume();
 
             // ONly for int array / arraylists
@@ -855,6 +854,7 @@ uint64_t e1(void) {
         return v;
     }
     else {
+        printf("UNKNOWN DECLARATION\n");
         error();
         return 0;
     }
@@ -936,10 +936,16 @@ uint64_t statement(int doit) {
                 if (peek() == LBRACKET) {
                     consume();
                     uint64_t index = expression();
-                    if (peek() != RBRACKET) error();
+                    if (peek() != RBRACKET) {
+                        printf("MISSING RIGHT BRACKET\n");
+                        error();
+                    }
                         consume();
 
-                    if (peek() != EQ) error();
+                    if (peek() != EQ) {
+                        printf("UNKNOWN COMMAND");
+                        error();
+                    }
                         consume();
 
                     char* str;
@@ -1009,7 +1015,10 @@ uint64_t statement(int doit) {
             }
 
             // Check for equals after ID
-            if (peek() != EQ) error();
+            if (peek() != EQ) {
+                printf("UNKNOWN COMMAND\n");
+                error();
+            }
 
             consume();
 
@@ -1034,9 +1043,9 @@ uint64_t statement(int doit) {
                             if (symbolTableNode != NULL) {
                                 if (symbolTableNode->kind != ARRAY || 
                                 (symbolTableNode->kind == ARRAY && symbolTableNode->array == NULL)){
-                                printf("TYPE ERROR\n");
-                                error();
-                            }
+                                    printf("TYPE ERROR\n");
+                                    error();
+                                }
                             }
                      
                             
@@ -1089,9 +1098,9 @@ uint64_t statement(int doit) {
                             if (symbolTableNode != NULL) {
                                 if (symbolTableNode->kind != ARRAYLIST || 
                                 (symbolTableNode->kind == ARRAYLIST && symbolTableNode->arraylist->kind != INT)) {
-                                printf("TYPE ERROR\n");
-                                error();
-                            }
+                                    printf("TYPE ERROR\n");
+                                    error();
+                                }
                             }
 
                             if (doit) setArrayList(id, newArrayList, numElements);
@@ -1117,7 +1126,10 @@ uint64_t statement(int doit) {
                             char** newArray = (char**) malloc(numElements * sizeof(char*));
                             consume();
                             for (int i = 0; i < numElements; i++) {
-                                if (peek() != STRING) error();
+                                if (peek() != STRING) {
+                                    printf("INPUT ELEMENTS ARE NOT STRINGS\n");
+                                    error();
+                                }
                                 newArray[i] = tokenPtr->token->str;
                                 consume();
                                 if (peek() == COMMA) consume();
@@ -1139,7 +1151,10 @@ uint64_t statement(int doit) {
                             consume();
                             newArrayList->kind = STRING;
                             for (int i = 0; i < numElements; i++) {
-                                if (peek() != STRING) error();
+                                if (peek() != STRING) {
+                                    printf("INPUT ELEMENTS ARE NOT STRINGS\n");
+                                    error();
+                                }
                                 newArrayList->array_str[i] = tokenPtr->token->str;
                                 consume();
                                 if (peek() == COMMA) consume();
@@ -1174,9 +1189,9 @@ uint64_t statement(int doit) {
                             if (symbolTableNode != NULL) {
                                 if (symbolTableNode->kind != LINKEDLIST || 
                                 (symbolTableNode->kind == LINKEDLIST && symbolTableNode->head->str == NULL)) {
-                                printf("TYPE ERROR\n");
-                                error();
-                            }
+                                    printf("TYPE ERROR\n");
+                                    error();
+                                }
                             }
                             head->kind = STRING;
                             tail->kind = STRING;
@@ -1203,8 +1218,10 @@ uint64_t statement(int doit) {
         case LBRACE: {
             consume();
             seq(doit);
-            if (peek() != RBRACE)
+            if (peek() != RBRACE) {
+                printf("MISSING RIGHT BRACE\n");
                 error();
+            }
             consume();
             return 1;
         }
@@ -1363,8 +1380,10 @@ void seq(int doit) {
 
 void program(void) {
     seq(1);
-    if (peek() != END)
+    if (peek() != END) {
+        printf("UNDEFINED END OF PROGRAM\n");
         error();
+    }
 }
 
 void interpret(char *prog) {
