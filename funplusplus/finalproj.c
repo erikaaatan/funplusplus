@@ -175,6 +175,7 @@ uint64_t* resizeUp(uint64_t* array, uint64_t oldSize) {
         newArray[i] = array[i];
     }
     //printArray(newArray, newSize);
+    free(array);
     return newArray;
 }
 
@@ -189,6 +190,7 @@ uint64_t* resizeUp(uint64_t* array, uint64_t oldSize) {
     {
         newArray_str[i] = array_str[i];
     }
+    free(array_str);
     return newArray_str;
 
 }
@@ -204,6 +206,7 @@ uint64_t* resizeUp(uint64_t* array, uint64_t oldSize) {
      {
          newArray[i] = array[i];
      }
+     free(array);
     //printArray(array, newSize);
     return newArray;
  }
@@ -218,6 +221,7 @@ uint64_t* resizeUp(uint64_t* array, uint64_t oldSize) {
     {
         newArray_str[i] = array_str[i];
     }
+    free(array_str);
 
     return newArray_str;
 
