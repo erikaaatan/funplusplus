@@ -46,6 +46,9 @@ enum Kind {
     LBRACKET, // [
     RBRACKET,  // ]
     ARRAYLIST,
+        QUEUE,
+    ADD,
+    PEEK,
     INSERT,
     REMOVE,
     SUB,
@@ -323,6 +326,47 @@ void removeLinkedList(struct Node* symbolTableNode, uint64_t index) {
     symbolTableNode->numElements -= 1;
 }
 
+//QUEUE REMOVE 
+void removeQueue(struct Node* symbolTableNode)
+{
+    if (symbolTableNode->numElements == 0)
+    {
+        error(); 
+    }
+
+    if (symbolTableNode->numElements == 1)
+    {
+	symbolTableNode->head = symbolTableNode->head->next;
+	symbolTableNode->numElements -=1;
+	return; 
+    }
+
+    struct LinkedList* previous = symbolTableNode->head;
+    struct LinkedList* current = previous->next;
+
+    while (current != symbolTableNode->tail)
+    {
+        previous = current; 
+	current = current->next;
+    }
+
+    previous->next = current->next;
+    symbolTableNode->tail = previous;
+    symbolTableNode->numElements -= 1;
+}
+
+//QUEUE Peek 
+
+uint64_t peekQueue(struct Node* symbolTableNode)
+{
+    if (symbolTableNode->numElements == 0)
+    {
+        error(); 
+    }
+
+    return symbolTableNode->tail->data;
+}
+
 struct Node* newNode(void) {
     struct Node* new = (struct Node*) malloc(sizeof(struct Node));
     for (int i = 0; i < 36; i++) {
@@ -386,6 +430,22 @@ void setLinkedList(char *id, struct LinkedList* head, struct LinkedList* tail, i
     current->end = 1;
     current->numElements = numElements;
     current->kind = LINKEDLIST;
+}
+
+void setQueue(char *id, struct LinkedList* head, struct LinkedList* tail, int numElements) {
+    struct Node* current = root;
+    for (int i = 0; i < strlen(id); i++) {
+        int pos = getAlNumPos(id[i]);
+        if (current->children[pos] == NULL) {
+            current->children[pos] = newNode();
+        }
+        current = current->children[pos];
+    }
+    current->head = head;
+    current->tail = tail;
+    current->end = 1;
+    current->numElements = numElements;
+    current->kind = QUEUE;
 }
 
 void setArrayAtIndex(char *id, uint64_t value, char *str, int index) {
@@ -492,6 +552,41 @@ enum Kind getOperatorKind(char chr) {
         default: return NONE;
     }
 }
+char* stringKind(enum Kind kind) {
+    switch (kind) {
+        case END: return "end";
+        case ELSE: return "else";
+        case EQ: return "eq";
+        case EQEQ: return "eqeq";
+        case ID: return "id";
+        case IF: return "if";
+        case INT: return "int";
+        case LBRACE: return "lbrace";
+        case LEFT: return "left";
+        case MUL: return "Mul";
+        case NONE: return "none";
+        case PLUS: return "plus";
+        case PRINT: return "print";
+        case RBRACE: return "rbrace";
+        case RIGHT: return "right";
+        case WHILE: return "while";
+        case FUN: return "fun";
+        case DEC: return "dec";
+        case ARRAY: return "array";
+        case TYPE_INT: return "type_int";
+        case COMMA: return "comma";
+        case ARRAYLIST: return "arraylist";
+        case INSERT: return "insert";
+        case REMOVE: return "remove";
+        case LBRACKET: return "[";
+        case RBRACKET: return "]";
+        case SUB: return "sub";
+            case QUEUE: return "queue";
+            case PEEK: return "peek";
+            case ADD: return "add";
+    }
+}
+
 
 uint64_t getIntValue(char* start, int length) {
     uint64_t res = 0;
@@ -629,6 +724,19 @@ void setCurrentToken(void) {
         current.kind = REMOVE;
         current.length = 6;
     }
+    else if (cursor + 3 < len && prog[cursor] == 'a' && prog[cursor + 1] == 'd' && prog[cursor + 2] == 'd' &&
+             !isalnum(prog[cursor + 3])) {
+        current.kind = ADD;
+        current.length = 3;
+    }
+    else if (cursor + 5 < len && prog[cursor] == 'q' && prog[cursor + 1] == 'u' && prog[cursor + 2] == 'e' && prog [cursor + 3] == 'u' && prog[cursor + 4] == 'e' && !isalnum(prog[cursor + 5])) {
+        current.kind = QUEUE; 
+	current.length = 5;
+    }
+    else if (cursor + 4 < len && prog[cursor] == 'p' && prog[cursor + 1] == 'e' && prog[cursor + 2] == 'e' && prog [cursor + 3] == 'k' && !isalnum(prog[cursor + 4])) {
+        current.kind = PEEK;
+        current.length = 4;
+    }
     else {
         // it's an identifier or function
         int currLength = 0;
@@ -721,8 +829,16 @@ uint64_t e1(void) {
         char *id = getId();
         struct Node* symbolTableNode = getNode(id);
         consume();
+	//Queue Peek management
+	if (peek() == PEEK)
+        {
+            struct Node* symbolTableNode = getNode(id);
+            uint64_t returnVal = peekQueue(symbolTableNode);
+            consume();
+            return returnVal;
+        }
         // Array Indexing for arrays and arraylists
-        if (peek() == LBRACKET) {
+	else if (peek() == LBRACKET) {
             consume();
             uint64_t index = expression();
             if (peek() != RBRACKET) error();
@@ -891,24 +1007,50 @@ uint64_t statement(int doit) {
                         if (doit) insertLinkedList(symbolTableNode, item);
                     }
                 }
+		    //else if (peek() == PEEK)
+		    //{
+		    //    consume(); 
+		    //    if (symbolTableNode->kind == QUEUE)
+		    //    {
+		        //        if (doit) peekQueue(symbolTableNode);
+		    //    }
+		    //}
+		    else if (peek() == ADD) {
+		        consume();
+		        uint64_t item = expression(); 
+		        if (doit) insertLinkedList(symbolTableNode, item);
+		    }   
+		    //else if (peek() == PEEK) {
+		    //    consume(); 
+		    //}
                 // CASE: ArrayList, LinkedList, Queue Remove
-                else if (symbolTableNode != NULL && peek() == REMOVE || doit == 0) {
-                    if (doit == 0 && symbolTableNode == NULL) {
+            else if (symbolTableNode != NULL && peek() == REMOVE || doit == 0) {
+                if (doit == 0 && symbolTableNode == NULL) {
                         consume();
                         consume();
                         return 1;
                     }
                     consume();
-                    uint64_t index = expression();
-                    if (symbolTableNode->kind == ARRAYLIST) {
-                        if (doit) removeArrayList(symbolTableNode->arraylist, index);
-                    }
-                    else if (symbolTableNode->kind == LINKEDLIST) {
-                        if (doit) removeLinkedList(symbolTableNode, index);
-                    }
+		        uint64_t index = 0;  
+		        if (symbolTableNode->kind == QUEUE)
+		        {
+			        if (doit) removeQueue(symbolTableNode);
+		        }
+		        else 
+		        {
+		            index = expression();
+		        }
+
+                if (symbolTableNode->kind == ARRAYLIST) {
+                    if (doit) removeArrayList(symbolTableNode->arraylist, index);
                 }
-                return 1;
+                else if (symbolTableNode->kind == LINKEDLIST) {
+                    if (doit) removeLinkedList(symbolTableNode, index);
+                }
+  
             }
+            return 1;
+        }
             // Check for equals after ID
             if (peek() != EQ) error();
             consume();
@@ -939,7 +1081,7 @@ uint64_t statement(int doit) {
                             if (symbolTableNode != NULL) {
                                 if (symbolTableNode->kind != ARRAY || (symbolTableNode->kind == ARRAY && 
                                 symbolTableNode->array == NULL)) {
-                                    printf("TYPE_ERROR: %s\n", original + tokenPtr->token->index);
+                                    printf("TYPE_ERROR \n");
                                     error();
                                 }
                             }
@@ -991,8 +1133,26 @@ uint64_t statement(int doit) {
                                 
                             
                             if (doit) setArrayList(id, newArrayList, numElements);
-                        }
-                   }
+                            break;
+                         }
+			            case QUEUE: {
+			                struct LinkedList* head = (struct LinkedList*)malloc(sizeof(struct LinkedList));
+                            struct LinkedList* tail = (struct LinkedList*)malloc(sizeof(struct LinkedList));
+                            tail->data = tokenPtr->token->value;
+                            head = tail;
+                            consume();
+                            //for (int i = 1; i < numElements; i++) {
+                            //    if (peek() == COMMA) consume();
+                            //    struct LinkedList* newNode = (struct LinkedList*)malloc(sizeof(struct LinkedList));
+                            //    newNode->data = tokenPtr->token->value;
+                            //    consume();
+                            //    tail->next = newNode;
+                            //    tail = newNode;
+                            //}
+                            if (doit) setQueue(id, head, tail, 1);
+                            break;	    
+			            }
+                    }
                 }
                 else if (peek() == TYPE_STRING) {
                     consume();
@@ -1017,7 +1177,7 @@ uint64_t statement(int doit) {
                             if (symbolTableNode != NULL) {
                                 if (symbolTableNode->kind != ARRAY || (symbolTableNode->kind == ARRAY && 
                                 symbolTableNode->array->kind != STRING)) {
-                                    printf("TYPE_ERROR: \n");
+                                    printf("TYPE_ERROR \n");
                                     error();
                                 }
                             }
@@ -1041,12 +1201,13 @@ uint64_t statement(int doit) {
                             if (symbolTableNode != NULL) {
                                 if (symbolTableNode->kind != ARRAYLIST || (symbolTableNode->kind == ARRAYLIST && 
                                 symbolTableNode->arraylist->kind != STRING)) {
-                                    printf("TYPE_ERROR: \n");
+                                    printf("TYPE_ERROR \n");
                                     error();
                                 }
                             }
 
                             if (doit) setArrayList(id, newArrayList, numElements);
+                            break;
                             
                         }
                     }
@@ -1061,12 +1222,15 @@ uint64_t statement(int doit) {
                 }
                 else {
                     uint64_t v = expression();
-                    if (doit) set(id, v);
-                }
+		             if (doit) set(id, v); 
+		        }
             
             }
             return 1;
         }
+    
+    
+    
         case LBRACE: {
             consume();
             seq(doit);
@@ -1128,7 +1292,7 @@ uint64_t statement(int doit) {
                 if (peek() != ID) printf("%"PRIu64"\n",expression());
                 // Print ID value
                 else {
-                    char* id = getId();
+                    char* id = getId(); 
                     struct Node* symbolTableNode = getNode(id);
 
                     if (symbolTableNode == NULL) {
@@ -1139,9 +1303,9 @@ uint64_t statement(int doit) {
                     // Print INT ID
                     else if (symbolTableNode->kind == INT) {
                         printf("%ld\n", get(id));
-                        consume();
-                    }
-                    else if (symbolTableNode->kind == STRING) {
+			    consume(); 
+		        }
+		        else if (symbolTableNode->kind == STRING) {
                         printf("%s\n", symbolTableNode->str);
                         consume();
                     }
@@ -1156,6 +1320,17 @@ uint64_t statement(int doit) {
                         printf("}\n");
                         consume();
                     }
+		            else if (symbolTableNode->kind == QUEUE) {
+		    	    struct LinkedList* current = getNode(id)->head;
+			        printf("{");
+			        while (current != NULL) {
+                            printf("%ld", current->data);
+                            current = current->next;
+                            if (current != NULL) printf(" ");
+                        }
+                        printf("}\n");
+                        consume();
+		            }
                     // ID is an array/arraylist
                     else {
                         // it is an array
@@ -1206,7 +1381,7 @@ uint64_t statement(int doit) {
             }
             // Consume tokens if not being executed
             else {
-                if (getNode(getId()) != NULL && (peek() == ID && getNode(getId())->kind == LINKEDLIST | getNode(getId())->kind == ARRAY | getNode(getId())->kind == ARRAYLIST)) consume();
+                if (getNode(getId()) != NULL && (peek() == ID && getNode(getId())->kind == LINKEDLIST | getNode(getId())->kind == ARRAY | getNode(getId())->kind == ARRAYLIST | getNode(getId())->kind == QUEUE)) consume();
                 else expression();
             }
             return 1;
@@ -1214,10 +1389,13 @@ uint64_t statement(int doit) {
         default:
             return 0;
     }
+    
+
+    
 }
 
 void seq(int doit) {
-    while (statement(doit)) ;
+    while (statement(doit));
 }
 
 void program(void) {
@@ -1348,12 +1526,16 @@ char* stringifyKind(enum Kind kind) {
         case RBRACKET: return "]";
         case SUB: return "sub";
         case TYPE_STRING: return "type_string";
-        case STRING: return "string";
+        case STRING: return "string"; 
         case LESS: return "<";
         case GREAT: return ">";
+        case QUEUE: return "queue";
+	    case PEEK: return "peek";
+	    case ADD: return "add"; 
         
     }
 }
+
 
 int main(int argc, char* argv[]) {
     increaseStackSize();
