@@ -518,6 +518,11 @@ void set_str(struct Node* root, char *id, char *str) {
     current->kind = STRING;
 }
 
+void set_obj(struct Node* root, char*id) {
+    struct Node* current = getNewNode(root, id);
+    current->kind = OBJECT;
+}
+
 /* The current token */
 static struct Token current = { NONE, 0, NULL, NULL, 0 };
 
@@ -709,6 +714,7 @@ void setCurrentToken(void) {
     }
     else {
         // it's an identifier, function, or object
+        int start = cursor;
         int currLength = 0;
         while (cursor < len && isalnum(prog[cursor])) {
             cursor++;
@@ -716,6 +722,9 @@ void setCurrentToken(void) {
         }
 
         if (object) {
+            char id[currLength];
+            strncpy(id, prog + start, currLength);
+            set_obj(root, id); 
             // Case: class declaration
             current.kind = OBJECT;
             current.length = currLength;
@@ -738,8 +747,18 @@ void setCurrentToken(void) {
                 current.extra = extra;
             }
             else {
-                current.kind = ID;
-                current.length = currLength;
+                // check if this ID is an object first
+                char id[currLength];
+                strncpy(id, prog + start, currLength);
+
+                if (inSymbolTable(root, id) && getNode(root, id)->kind == OBJECT) {
+                    current.kind = OBJECT;
+                    current.length = currLength;
+                }
+                else {
+                    current.kind = ID;
+                    current.length = currLength;
+                }
             }
         }
     }
@@ -1522,13 +1541,11 @@ int main(int argc, char* argv[]) {
 
     pretokenize();
 
-    /*
     do {
         printf("%s\n", stringifyKind(tokenPtr->token->kind));
         consume();
     }
     while (tokenPtr->token->kind != END);
-    */
 
     interpret(prog);
 
