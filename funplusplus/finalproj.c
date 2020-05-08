@@ -16,6 +16,7 @@ int nodeIndex;
 struct LinkedNode* head = NULL;
 struct LinkedNode* tail = NULL;
 struct LinkedNode* tokenPtr = NULL;
+int object = 0; // use during pretokenization if you are declaring an object
 
 /* Kinds of tokens */
 enum Kind {
@@ -53,7 +54,10 @@ enum Kind {
     REMOVE,
     SUB,
     LESS,
-    GREAT
+    GREAT,
+    CLASS,
+    OBJECT,
+    DOT
 };
 
 /* information about a token */
@@ -277,6 +281,11 @@ struct Node {
     struct Node* children[36];
 };
 
+struct ObjectNode {
+    struct Node* root; // its own symbol table
+    struct Node* children[36];
+};
+
 // LINKEDNODES CARRY PRETOKENIZED VALUES
 struct LinkedNode {
     struct Token* token;
@@ -379,7 +388,7 @@ int getAlNumPos(char c) {
     return (int) c - 97;
 }
 
-int inSymbolTable(char *id) {
+int inSymbolTable(struct Node* root, char *id) {
     struct Node* current = root;
     for (int i = 0; i < strlen(id); i++) {
         int pos = getAlNumPos(id[i]);
@@ -389,8 +398,8 @@ int inSymbolTable(char *id) {
     return 1;
 }
 
-struct Node* getNode(char *id) {
-    if (!inSymbolTable(id)) return 0;
+struct Node* getNode(struct Node* root, char *id) {
+    if (!inSymbolTable(root, id)) return 0;
     struct Node* current = root;
     for (int i = 0; i < strlen(id); i++) {
         int pos = getAlNumPos(id[i]);
@@ -399,12 +408,12 @@ struct Node* getNode(char *id) {
     return current;
 }
 
-uint64_t get(char *id) {
-    if (!inSymbolTable(id)) return 0;
-    return getNode(id)->data;
+uint64_t get(struct Node* root, char *id) {
+    if (!inSymbolTable(root, id)) return 0;
+    return getNode(root, id)->data;
 }
 
-struct Node* getNewNode(char *id) {
+struct Node* getNewNode(struct Node* root, char *id) {
     struct Node* current = root;
     for (int i = 0; i < strlen(id); i++) {
         int pos = getAlNumPos(id[i]);
@@ -417,7 +426,7 @@ struct Node* getNewNode(char *id) {
 }
 
 void setLinkedList(char *id, struct LinkedList* head, struct LinkedList* tail, int numElements) {
-    struct Node* current = getNewNode(id);    
+    struct Node* current = getNewNode(root, id);    
     current->head = head;
     current->tail = tail;
     current->end = 1;
@@ -425,7 +434,7 @@ void setLinkedList(char *id, struct LinkedList* head, struct LinkedList* tail, i
     current->kind = LINKEDLIST;
 }
 
-void setQueue(char *id, struct LinkedList* head, struct LinkedList* tail, int numElements) {
+void setQueue(struct Node* root, char *id, struct LinkedList* head, struct LinkedList* tail, int numElements) {
     struct Node* current = root;
     for (int i = 0; i < strlen(id); i++) {
         int pos = getAlNumPos(id[i]);
@@ -441,8 +450,8 @@ void setQueue(char *id, struct LinkedList* head, struct LinkedList* tail, int nu
     current->kind = QUEUE;
 }
 
-void setArrayAtIndex(char *id, uint64_t value, char *str, int index) {
-    struct Node* symbolTableNode = getNode(id);
+void setArrayAtIndex(struct Node* root, char *id, uint64_t value, char *str, int index) {
+    struct Node* symbolTableNode = getNode(root, id);
     enum Kind type = symbolTableNode->kind;
     uint64_t* array;
     char** array_str;
@@ -471,39 +480,39 @@ void setArrayAtIndex(char *id, uint64_t value, char *str, int index) {
     else array[index] = value;
 }
 // Set Trie Node Methods for Data structure types
-void setArray(char *id, uint64_t* array, int numElements) {
-    struct Node* current = getNewNode(id); 
+void setArray(struct Node* root, char *id, uint64_t* array, int numElements) {
+    struct Node* current = getNewNode(root, id); 
     current->array = array;
     current->end = 1;
     current->numElements = numElements;
     current->kind = ARRAY;
 }
 
-void setArray_str(char *id, char** array, int numElements) {
-    struct Node* current = getNewNode(id); 
+void setArray_str(struct Node* root, char *id, char** array, int numElements) {
+    struct Node* current = getNewNode(root, id); 
     current->array_str = array;
     current->end = 1;
     current->numElements = numElements;
     current->kind = ARRAY;
 }
 
-void setArrayList(char *id, ArrayList* arraylist, int numElements) {
-    struct Node* current = getNewNode(id);
+void setArrayList(struct Node* root, char *id, ArrayList* arraylist, int numElements) {
+    struct Node* current = getNewNode(root, id);
     current->arraylist = arraylist;
     current->end = 1;
     current->numElements = numElements;
     current->kind = ARRAYLIST;
 }
 
-void set(char *id, uint64_t value) {
-    struct Node* current = getNewNode(id); 
+void set(struct Node* root, char *id, uint64_t value) {
+    struct Node* current = getNewNode(root, id); 
     current->data = value;
     current->end = 1;
     current->kind = INT;
 }
 
-void set_str(char *id, char *str) {
-    struct Node* current = getNewNode(id); 
+void set_str(struct Node* root, char *id, char *str) {
+    struct Node* current = getNewNode(root, id); 
     current->str = str;
     current->end = 1;
     current->kind = STRING;
@@ -575,6 +584,10 @@ void setCurrentToken(void) {
 
     if (getOperatorKind(prog[cursor]) != NONE) {
         current.kind = getOperatorKind(prog[cursor]);
+        current.length = 1;
+    }
+    else if (prog[cursor] == '.') {
+        current.kind = DOT;
         current.length = 1;
     }
     else if (prog[cursor] == ',') {
@@ -689,31 +702,45 @@ void setCurrentToken(void) {
         current.kind = PEEK;
         current.length = 4;
     }
+    else if (checkKind(cursor, 5, "class")) {
+        current.kind = CLASS;
+        current.length = 5;
+        object = 1;
+    }
     else {
-        // it's an identifier or function
+        // it's an identifier, function, or object
         int currLength = 0;
         while (cursor < len && isalnum(prog[cursor])) {
             cursor++;
             currLength++;
         }
-        int extra = 0;
-        while (cursor < len && isspace(prog[cursor])) {
-            cursor++;
-            extra++;
+
+        if (object) {
+            // Case: class declaration
+            current.kind = OBJECT;
+            current.length = currLength;
+            object = 0; // toggle off
         }
-        if (prog[cursor] == '(') {
-            extra++;
-            while (prog[cursor] != ')') {
+        else {
+            int extra = 0;
+            while (cursor < len && isspace(prog[cursor])) {
                 cursor++;
                 extra++;
             }
-            current.kind = FUN;
-            current.length = currLength + extra;
-            current.extra = extra;
-        }
-        else {
-            current.kind = ID;
-            current.length = currLength;
+            if (prog[cursor] == '(') {
+                extra++;
+                while (prog[cursor] != ')') {
+                    cursor++;
+                    extra++;
+                }
+                current.kind = FUN;
+                current.length = currLength + extra;
+                current.extra = extra;
+            }
+            else {
+                current.kind = ID;
+                current.length = currLength;
+            }
         }
     }
     current.index = nodeIndex;
@@ -780,13 +807,13 @@ uint64_t e1(void) {
         return (uint64_t) tokenPtr->token->str;
     }*/else if (peek() == ID) {
         char *id = getId();
-        struct Node* symbolTableNode = getNode(id);
+        struct Node* symbolTableNode = getNode(root, id);
         consume();
 	
 	//Queue Peek management
 	if (peek() == PEEK)
         {
-            struct Node* symbolTableNode = getNode(id);
+            struct Node* symbolTableNode = getNode(root, id);
             uint64_t returnVal = peekQueue(symbolTableNode);
             consume();
             return returnVal;
@@ -816,7 +843,7 @@ uint64_t e1(void) {
                 }
             }
         }
-        return get(id);
+        return get(root, id);
     } /*else if (peek() == STRING) {
         consume();
         return (uint64_t) tokenPtr->token->str;
@@ -906,7 +933,7 @@ uint64_t statement(int doit) {
             if (peek() != EQ) {
                 
                 // Get node in symbol table 
-                symbolTableNode = getNode(id);  
+                symbolTableNode = getNode(root, id);  
 
                 // Array and ArrayList indexing
                 if (peek() == LBRACKET) {
@@ -933,7 +960,7 @@ uint64_t statement(int doit) {
                     else v = expression();
 
                     // Set array for arrays and arraylists
-                    if (doit) setArrayAtIndex(id, v, str, index);
+                    if (doit) setArrayAtIndex(root, id, v, str, index);
                     
                 }
                 // CASE: ArrayList, LinkedList, Queue insert
@@ -1005,7 +1032,7 @@ uint64_t statement(int doit) {
 		        if (peek() == TYPE_INT) {
                     consume();
                     int numElements = tokenPtr->token->value;
-                    struct Node* symbolTableNode = getNode(id);
+                    struct Node* symbolTableNode = getNode(root, id);
 
                     switch (kind) {
                         case ARRAY: {
@@ -1025,7 +1052,7 @@ uint64_t statement(int doit) {
                             }
                      
                             
-                            if (doit) setArray(id, newArray, numElements); 
+                            if (doit) setArray(root, id, newArray, numElements); 
                             break;
                         }
                         case LINKEDLIST: {
@@ -1077,7 +1104,7 @@ uint64_t statement(int doit) {
                                 }
                             }
 
-                            if (doit) setArrayList(id, newArrayList, numElements);
+                            if (doit) setArrayList(root, id, newArrayList, numElements);
                             break;
                         }
 			            case QUEUE: {
@@ -1086,7 +1113,7 @@ uint64_t statement(int doit) {
                             tail->data = tokenPtr->token->value;
                             head = tail;
                             consume();
-                            if (doit) setQueue(id, head, tail, 1);
+                            if (doit) setQueue(root, id, head, tail, 1);
                             break;	    
 			            }
                    }
@@ -1094,7 +1121,7 @@ uint64_t statement(int doit) {
                 else if (peek() == TYPE_STRING) {
                     consume();
                     int numElements = tokenPtr->token->value;
-                    struct Node* symbolTableNode = getNode(id);
+                    struct Node* symbolTableNode = getNode(root, id);
                     switch (kind) {
                         case ARRAY: {
                             char** newArray = (char**) malloc(numElements * sizeof(char*));
@@ -1115,7 +1142,7 @@ uint64_t statement(int doit) {
                                 error();
                             }
                             }
-                            if (doit) setArray_str(id, newArray, numElements); 
+                            if (doit) setArray_str(root, id, newArray, numElements); 
                             break;
                         }
                         case ARRAYLIST: {
@@ -1141,7 +1168,7 @@ uint64_t statement(int doit) {
                                 error();
                             }
                             }
-                            if (doit) setArrayList(id, newArrayList, numElements);
+                            if (doit) setArrayList(root, id, newArrayList, numElements);
                             break;
                         }
                         case LINKEDLIST: {
@@ -1177,12 +1204,12 @@ uint64_t statement(int doit) {
             else {
                 if (peek() == STRING) {
                     char* str = tokenPtr->token->str;
-                    if (doit) set_str(id, str);
+                    if (doit) set_str(root, id, str);
                     consume();
                 }
                 else {
                     uint64_t v = expression();
-		            if (doit) set(id, v); 
+		            if (doit) set(root, id, v); 
 		        }
             }
             return 1;
@@ -1236,7 +1263,7 @@ uint64_t statement(int doit) {
             if (!doit) return 1;
             int returnIndex = tokenPtr->token->index;
             // go to the start of the function
-            moveTokenPtrToIndex(get(funId));
+            moveTokenPtrToIndex(get(root, funId));
             statement(doit);
             // move it back to where it was before
             moveTokenPtrToIndex(returnIndex);
@@ -1251,7 +1278,7 @@ uint64_t statement(int doit) {
                 else {
                     char* id = getId(); 
 
-                    struct Node* symbolTableNode = getNode(id);
+                    struct Node* symbolTableNode = getNode(root, id);
 
                     if (symbolTableNode == NULL) {
                         // the id is not in the symbol table yet
@@ -1260,7 +1287,7 @@ uint64_t statement(int doit) {
                     }
                     // Print INT ID
                     else if (symbolTableNode->kind == INT) {
-                        printf("%ld\n", get(id));
+                        printf("%ld\n", get(root, id));
 			            consume(); 
 		            }
 		            else if (symbolTableNode->kind == STRING) {
@@ -1268,7 +1295,7 @@ uint64_t statement(int doit) {
                         consume();
                     }
                     else if (symbolTableNode->kind == LINKEDLIST) {
-                        struct LinkedList* current = getNode(id)->head;
+                        struct LinkedList* current = getNode(root, id)->head;
                         printf("{");
                         while (current != NULL) {
                             if (current->str != NULL) printf("%s", current->str);
@@ -1280,7 +1307,7 @@ uint64_t statement(int doit) {
                         consume();
                     }
 		            else if (symbolTableNode->kind == QUEUE) {
-		    	        struct LinkedList* current = getNode(id)->head;
+		    	        struct LinkedList* current = getNode(root, id)->head;
                         printf("{");
                         while (current != NULL) {
                             printf("%ld", current->data);
@@ -1336,7 +1363,7 @@ uint64_t statement(int doit) {
             }
             // Consume tokens if not being executed
             else {
-                if (getNode(getId()) != NULL && (peek() == ID && getNode(getId())->kind == LINKEDLIST | getNode(getId())->kind == ARRAY | getNode(getId())->kind == ARRAYLIST | getNode(getId())->kind == QUEUE)) consume();
+                if (getNode(root, getId()) != NULL && (peek() == ID && getNode(root, getId())->kind == LINKEDLIST | getNode(root, getId())->kind == ARRAY | getNode(root, getId())->kind == ARRAYLIST | getNode(root, getId())->kind == QUEUE)) consume();
                 else expression();
             }
             return 1;
@@ -1480,6 +1507,9 @@ char* stringifyKind(enum Kind kind) {
 	    case QUEUE: return "queue";
 	    case PEEK: return "peek";
 	    case ADD: return "add";       
+        case CLASS: return "class";
+        case OBJECT: return "object";
+        case DOT: return "dot";
    }
 }
 
