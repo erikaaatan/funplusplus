@@ -330,6 +330,7 @@ void removeQueue(struct Node* symbolTableNode)
 {
     if (symbolTableNode->numElements == 0)
     {
+        printf("OUT OF BOUNDS\n"); 
         error(); 
     }
 
