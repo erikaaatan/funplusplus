@@ -7,5 +7,10 @@ x remove 1
 print x
 x remove 3
 print x
-x remove 3
-print x
+
+y = linkedlist string 3 "one", "two", "three"
+print y
+y insert "four"
+print y
+y remove 0
+print y
