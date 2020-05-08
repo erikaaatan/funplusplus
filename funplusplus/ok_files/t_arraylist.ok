@@ -4,4 +4,6 @@
 {}
 {hello world}
 {world there}
+TYPE_ERROR:
+error at ''
 
