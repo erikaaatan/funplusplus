@@ -536,41 +536,6 @@ enum Kind getOperatorKind(char chr) {
     }
 }
 
-char* stringKind(enum Kind kind) {
-    switch (kind) {
-        case END: return "end";
-        case ELSE: return "else";
-        case EQ: return "eq";
-        case EQEQ: return "eqeq";
-        case ID: return "id";
-        case IF: return "if";
-        case INT: return "int";
-        case LBRACE: return "lbrace";
-        case LEFT: return "left";
-        case MUL: return "Mul";
-        case NONE: return "none";
-        case PLUS: return "plus";
-        case PRINT: return "print";
-        case RBRACE: return "rbrace";
-        case RIGHT: return "right";
-        case WHILE: return "while";
-        case FUN: return "fun";
-        case DEC: return "dec";
-        case ARRAY: return "array";
-        case TYPE_INT: return "type_int";
-        case COMMA: return "comma";
-        case ARRAYLIST: return "arraylist";
-        case INSERT: return "insert";
-        case REMOVE: return "remove";
-        case LBRACKET: return "[";
-        case RBRACKET: return "]";
-        case SUB: return "sub";
-        case QUEUE: return "queue";
-        case PEEK: return "peek";
-        case ADD: return "add";
-    }
-}
-
 uint64_t getIntValue(char* start, int length) {
     uint64_t res = 0;
     for (int i = 0; i < length; i++) {
@@ -1433,9 +1398,9 @@ char* stringifyKind(enum Kind kind) {
         case SUB: return "sub";
         case TYPE_STRING: return "type_string";
         case STRING: return "string";
-	case QUEUE: return "queue";
-	case PEEK: return "peek";
-	case ADD: return "add";       
+	    case QUEUE: return "queue";
+	    case PEEK: return "peek";
+	    case ADD: return "add";       
    }
 }
 
