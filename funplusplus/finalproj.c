@@ -843,15 +843,15 @@ uint64_t getInt(void) {
     return tokenPtr->token->value;
 }
 
-uint64_t expression(void);
+uint64_t expression(struct Node* root);
 void seq(struct Node* root, int doit);
 uint64_t statement(struct Node* root, int doit);
 
 /* handle id, literals, and (...) */
-uint64_t e1(void) {
+uint64_t e1(struct Node* root) {
     if (peek() == LEFT) {
         consume();
-        uint64_t v = expression();
+        uint64_t v = expression(root);
         if (peek() != RIGHT) {
             printf("MISSING RIGHT PARENTHESIS\n");
             error();
@@ -881,7 +881,7 @@ uint64_t e1(void) {
         // Array Indexing for arrays and arraylists
 	else if (peek() == LBRACKET) {
             consume();
-            uint64_t index = expression();
+            uint64_t index = expression(root);
             if (peek() != RBRACKET) {
                 printf("MISSING RIGHT BRACKET\n");
                 error();
@@ -924,46 +924,46 @@ uint64_t e1(void) {
 }
 
 /* handle '*' */
-uint64_t e2(void) {
-    uint64_t value = e1();
+uint64_t e2(struct Node* root) {
+    uint64_t value = e1(root);
     while (peek() == MUL) {
         consume();
-        value = value * e1();
+        value = value * e1(root);
     }
     return value;
 }
 
 /* handle '+' */
-uint64_t e3(void) {
-    uint64_t value = e2();
+uint64_t e3(struct Node* root) {
+    uint64_t value = e2(root);
     while (peek() == PLUS) {
         consume();
-        value = value + e2();
+        value = value + e2(root);
     }
     while (peek() == SUB) {
         consume();
-        value = value - e2();
+        value = value - e2(root);
     }
     return value;
 }
 
 /* handle '==' */
-uint64_t e4(void) {
-    uint64_t value = e3();
+uint64_t e4(struct Node* root) {
+    uint64_t value = e3(root);
     while (peek() == EQEQ) {
         consume();
-        value = value == e3();
+        value = value == e3(root);
     }
     while (peek() == LESS) {
         consume();
-        if (value < e3()) {
+        if (value < e3(root)) {
             return 1;
         }
         return 0;
     }
     while (peek() == GREAT) {
         consume();
-        if (value > e3()) {
+        if (value > e3(root)) {
             return 1;
         }
         return 0;
@@ -971,8 +971,8 @@ uint64_t e4(void) {
     return value;
 }
 
-uint64_t expression(void) {
-    return e4();
+uint64_t expression(struct Node* root) {
+    return e4(root);
 }
 
 void moveTokenPtrToIndex(int index) {
@@ -995,10 +995,25 @@ uint64_t statement(struct Node* root, int doit) {
                 // Get node in symbol table 
                 symbolTableNode = getNode(root, id);  
 
-                // Array and ArrayList indexing
-                if (peek() == LBRACKET) {
+                // object function
+                if (peek() == DOT) {
                     consume();
-                    uint64_t index = expression();
+                    char* funId = getFunId();
+                    consume();
+                    if (!doit) return 1;
+                    int returnIndex = tokenPtr->token->index;
+                    // go to the start of the function
+                    struct Node* newRoot = symbolTableNode->objSymbolTable;
+                    moveTokenPtrToIndex(get(newRoot, funId));
+                    statement(newRoot, doit);
+                    // move it back to where it was before
+                    moveTokenPtrToIndex(returnIndex);
+                    return 1;
+                }
+                // Array and ArrayList indexing
+                else if (peek() == LBRACKET) {
+                    consume();
+                    uint64_t index = expression(root );
                     if (peek() != RBRACKET) {
                         printf("MISSING RIGHT BRACKET\n");
                         error();
@@ -1017,7 +1032,7 @@ uint64_t statement(struct Node* root, int doit) {
                         str = tokenPtr->token->str;
                         consume();
                     }
-                    else v = expression();
+                    else v = expression(root);
 
                     // Set array for arrays and arraylists
                     if (doit) setArrayAtIndex(root, id, v, str, index);
@@ -1035,7 +1050,7 @@ uint64_t statement(struct Node* root, int doit) {
                             consume();
                         }
                         else if (symbolTableNode->arraylist->kind == INT) {
-                            item = expression();
+                            item = expression(root);
                         }
                         if (doit) insertArrayList(symbolTableNode->arraylist, item, item_str);
 
@@ -1046,14 +1061,14 @@ uint64_t statement(struct Node* root, int doit) {
                             consume();
                         }
                         else {
-                            item = expression();
+                            item = expression(root);
                         }
                         if (doit) insertLinkedList(symbolTableNode, item, item_str);
                     }
                 }
                 else if (peek() == ADD) {
                     consume();
-                    uint64_t item = expression(); 
+                    uint64_t item = expression(root); 
                     if (doit) insertLinkedList(symbolTableNode, item, NULL);
                 }
                 // CASE: ArrayList, LinkedList, Queue Remove
@@ -1064,7 +1079,7 @@ uint64_t statement(struct Node* root, int doit) {
                         if (doit) removeQueue(symbolTableNode);
                     }
                     else {
-                        uint64_t index = expression();
+                        uint64_t index = expression(root);
 
                         if (symbolTableNode->kind == ARRAYLIST) {
                             if (doit) removeArrayList(symbolTableNode->arraylist, index);
@@ -1272,7 +1287,7 @@ uint64_t statement(struct Node* root, int doit) {
                     consume();
                 }
                 else {
-                    uint64_t v = expression();
+                    uint64_t v = expression(root);
 		            if (doit) set(root, id, v); 
 		        }
             }
@@ -1299,7 +1314,7 @@ uint64_t statement(struct Node* root, int doit) {
         }
         case IF: {
             consume();
-            uint64_t v = expression();
+            uint64_t v = expression(root);
             if (v) {
                 statement(root, doit);
                 if (peek() == ELSE) {
@@ -1320,12 +1335,12 @@ uint64_t statement(struct Node* root, int doit) {
         case WHILE: {
             consume();
             int expressionIndex = tokenPtr->token->index;
-            uint64_t v = expression();
+            uint64_t v = expression(root);
             while (v && doit) {
                 statement(root, doit);
                 // the statement was evaluated to true
                 moveTokenPtrToIndex(expressionIndex);
-                v = expression();
+                v = expression(root);
             }
             statement(root, 0);
             return 1;
@@ -1346,7 +1361,7 @@ uint64_t statement(struct Node* root, int doit) {
             consume();
             if (doit) {
                 // Print expression
-                if (peek() != ID) printf("%"PRIu64"\n",expression());
+                if (peek() != ID) printf("%"PRIu64"\n",expression(root));
                 // Print ID value
                 else {
                     char* id = getId(); 
@@ -1372,6 +1387,7 @@ uint64_t statement(struct Node* root, int doit) {
                         struct Node* objectNode = getNode(objRoot, getId());
                         if (objectNode->kind == INT) printf("%ld\n", objectNode->data);
                         else if (objectNode->kind == STRING) printf("%s\n", objectNode->str);
+                        consume(); // consume the id
                     }
 		            else if (symbolTableNode->kind == STRING) {
                         printf("%s\n", symbolTableNode->str);
@@ -1443,7 +1459,7 @@ uint64_t statement(struct Node* root, int doit) {
             // Consume tokens if not being executed
             else {
                 if (getNode(root, getId()) != NULL && (peek() == ID && getNode(root, getId())->kind == LINKEDLIST | getNode(root, getId())->kind == ARRAY | getNode(root, getId())->kind == ARRAYLIST | getNode(root, getId())->kind == QUEUE)) consume();
-                else expression();
+                else expression(root);
             }
             return 1;
         }
