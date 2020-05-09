@@ -17,6 +17,8 @@ struct LinkedNode* head = NULL;
 struct LinkedNode* tail = NULL;
 struct LinkedNode* tokenPtr = NULL;
 int object = 0; // use during pretokenization if you are declaring an object
+int type_checking = 0;
+int type_error = 0;
 
 /* Kinds of tokens */
 enum Kind {
@@ -59,10 +61,14 @@ enum Kind {
     OBJECT,
     DOT
 };
+    
+enum Kind type_check_kind;
 
 /* information about a token */
 struct Token {
     enum Kind kind;
+    enum Kind structure_kind;
+    enum Kind type_kind;
     uint64_t value;
     char *ptr;
     char *start;
@@ -97,10 +103,12 @@ char **resizeDown_str(char **array_str, uint64_t oldSize);
 
  void insertArrayList(ArrayList* list, uint64_t item, char *str_item)
  {
+    uint64_t oldSize = list->size;
+    uint64_t newSize = list->size + 1;
     if (list->kind == INT) {
-        if (list->size >= (list->arraySize) / 2)
+        if (newSize >= (list->arraySize) / 2)
         {
-            list->array = resizeUp(list->array, list->size);
+            list->array = resizeUp(list->array, list->arraySize);
             list->arraySize *= 2;
         }
         list->array[list->size] = item;
@@ -108,9 +116,9 @@ char **resizeDown_str(char **array_str, uint64_t oldSize);
         //printArray(list->array, list->size);
      }
      else if (list->kind == STRING) {
-        if (list->size >= (list->arraySize) / 2)
+        if (newSize >= (list->arraySize) / 2)
         {
-            list->array_str = resizeUp_str(list->array_str, list->size);
+            list->array_str = resizeUp_str(list->array_str, list->arraySize);
             list->arraySize *= 2;
         }
         list->array_str[list->size] = str_item;
@@ -143,7 +151,7 @@ char **resizeDown_str(char **array_str, uint64_t oldSize);
 
         if (newSize <= ((list->arraySize) / 2))
         {
-            list->array = resizeDown(list->array, list->size);
+            list->array = resizeDown(list->array, list->arraySize);
             list->arraySize /= 2;
         }
     }
@@ -158,7 +166,7 @@ char **resizeDown_str(char **array_str, uint64_t oldSize);
 
         if (newSize <= ((list->arraySize) / 2))
         {
-            list->array_str = resizeDown_str(list->array_str, list->size);
+            list->array_str = resizeDown_str(list->array_str, list->arraySize);
             list->arraySize /= 2;
         }
     }
@@ -178,7 +186,7 @@ uint64_t* resizeUp(uint64_t* array, uint64_t oldSize) {
     {
         newArray[i] = array[i];
     }
-    //printArray(newArray, newSize);
+    free(array);
     return newArray;
 }
 
@@ -193,6 +201,7 @@ uint64_t* resizeUp(uint64_t* array, uint64_t oldSize) {
     {
         newArray_str[i] = array_str[i];
     }
+    free(array_str);
     return newArray_str;
 
 }
@@ -208,6 +217,7 @@ uint64_t* resizeUp(uint64_t* array, uint64_t oldSize) {
      {
          newArray[i] = array[i];
      }
+     free(array);
     //printArray(array, newSize);
     return newArray;
  }
@@ -222,6 +232,7 @@ uint64_t* resizeUp(uint64_t* array, uint64_t oldSize) {
     {
         newArray_str[i] = array_str[i];
     }
+    free(array_str);
 
     return newArray_str;
 
@@ -275,6 +286,7 @@ struct Node {
     ArrayList* arraylist;
     uint64_t* array;
     char** array_str;
+    enum Kind array_kind;
     int numElements;
     char* ptr;
     char* str;
@@ -292,6 +304,7 @@ struct LinkedNode {
 struct LinkedList {
     uint64_t data;
     char* str;
+    enum Kind kind;
     struct LinkedList* next;
 };
 
@@ -330,7 +343,7 @@ void removeLinkedList(struct Node* symbolTableNode, uint64_t index) {
     symbolTableNode->numElements -= 1;
 }
 
-//QUEUE REMOVE 
+
 void removeQueue(struct Node* symbolTableNode) {
     if (symbolTableNode->numElements == 0) {
         printf("OUT OF BOUNDS\n");
@@ -346,14 +359,7 @@ void removeQueue(struct Node* symbolTableNode) {
     struct LinkedList* previous = symbolTableNode->head;
     struct LinkedList* current = previous->next;
 
-    while (current != symbolTableNode->tail) {
-        previous = current; 
-	    current = current->next;
-    }
-
-    previous->next = current->next;
-    symbolTableNode->tail = previous;
-    symbolTableNode->numElements -= 1;
+    symbolTableNode->head = current;
 }
 
 //QUEUE Peek 
@@ -364,7 +370,7 @@ uint64_t peekQueue(struct Node* symbolTableNode) {
         error(); 
     }
 
-    return symbolTableNode->tail->data;
+    return symbolTableNode->head->data;
 }
 
 struct Node* newNode(void) {
@@ -565,7 +571,7 @@ struct Node* initializeObject(struct Node* root, char* id) {
 }
 
 /* The current token */
-static struct Token current = { NONE, 0, NULL, NULL, 0 };
+static struct Token current = { NONE,NONE, NONE, 0, NULL, NULL, 0 };
 
 static jmp_buf escape;
 
@@ -860,6 +866,12 @@ uint64_t e1(struct Node* root) {
         return v;
     }  else if (peek() == INT) {
         uint64_t v = getInt();
+        if (type_checking && type_check_kind != INT && type_check_kind != NONE) {
+            type_error = 1;
+            printf("TYPE ERROR 6\n");
+            consume();
+            return 1;
+        }
         consume();
         return v;
     }  /*else if (peek() == ID && tokenPtr->token->kind == STRING) {
@@ -868,6 +880,15 @@ uint64_t e1(struct Node* root) {
     }*/else if (peek() == ID) {
         char *id = getId();
         struct Node* symbolTableNode = getNode(root, id);
+        if (type_checking) {
+            enum Kind type_kind = tokenPtr->token->type_kind;
+            if (type_kind != NONE && type_kind != type_check_kind && type_check_kind != NONE) {
+                type_error = 1;
+                printf("TYPE ERROR 5\n");
+                consume();
+                return 1;
+            }
+        }
         consume();
 	
 	//Queue Peek management
@@ -1067,9 +1088,22 @@ uint64_t statement(struct Node* root, int doit) {
                     }
                 }
                 else if (peek() == ADD) {
+		    //printf("trying to add");
                     consume();
-                    uint64_t item = expression(root); 
-                    if (doit) insertLinkedList(symbolTableNode, item, NULL);
+                    uint64_t item;
+		    char *item_str = NULL;
+
+		    if (peek() == STRING)
+		    {
+		       item_str = tokenPtr->token->str;
+		       consume();
+		    }
+		    else
+		    {
+		       item = expression(root);
+		    }
+
+                    if (doit) insertLinkedList(symbolTableNode, item, item_str);
                 }
                 // CASE: ArrayList, LinkedList, Queue Remove
                 else if (peek() == REMOVE) {
@@ -1101,10 +1135,10 @@ uint64_t statement(struct Node* root, int doit) {
             consume();
 
             if (peek() == ARRAY || peek() == LINKEDLIST || peek() == ARRAYLIST || peek() == QUEUE) {
-		        enum Kind kind = peek();
+		enum Kind kind = peek();
                 consume();
 
-		        if (peek() == TYPE_INT) {
+		if (peek() == TYPE_INT) {
                     consume();
                     int numElements = tokenPtr->token->value;
                     struct Node* symbolTableNode = getNode(root, id);
@@ -1153,6 +1187,8 @@ uint64_t statement(struct Node* root, int doit) {
                                 error();
                             }
                             }
+                            head->kind = INT;
+                            tail->kind = INT;
 
                             if (doit) setLinkedList(id, head, tail, numElements);
                             break;
@@ -1160,6 +1196,7 @@ uint64_t statement(struct Node* root, int doit) {
                         case ARRAYLIST: {
                             ArrayList* newArrayList = new_ArrayList();
                             newArrayList->size = numElements;
+                            newArrayList->arraySize = numElements;
                             
                             newArrayList->array = (uint64_t*) malloc(numElements * sizeof(uint64_t));
                             newArrayList->array_str = NULL;
@@ -1182,15 +1219,27 @@ uint64_t statement(struct Node* root, int doit) {
                             if (doit) setArrayList(root, id, newArrayList, numElements);
                             break;
                         }
-			            case QUEUE: {
-			                struct LinkedList* head = (struct LinkedList*)malloc(sizeof(struct LinkedList));
+			case QUEUE: {
+			    struct LinkedList* head = (struct LinkedList*)malloc(sizeof(struct LinkedList));
                             struct LinkedList* tail = (struct LinkedList*)malloc(sizeof(struct LinkedList));
+                            consume();
                             tail->data = tokenPtr->token->value;
                             head = tail;
-                            consume();
+                           tail->next = NULL;
+                            
+			    if (symbolTableNode != NULL) {
+                                if (symbolTableNode->kind != QUEUE ||
+                                (symbolTableNode->kind == QUEUE && symbolTableNode->head->data == (uint64_t)NULL)) {
+                                printf("TYPE ERROR\n");
+                                error();
+                            }
+                            }
+                            head->kind = INT;
+                            tail->kind = INT;
+
                             if (doit) setQueue(root, id, head, tail, 1);
-                            break;	    
-			            }
+			    break;
+			}
                    }
                 }
                 else if (peek() == TYPE_STRING) {
@@ -1269,7 +1318,28 @@ uint64_t statement(struct Node* root, int doit) {
                                     error();
                                 }
                             }
+                            head->kind = STRING;
+                            tail->kind = STRING;
                             if (doit) setLinkedList(id, head, tail, numElements);
+                            break;
+                        }
+			case QUEUE: {
+                            struct LinkedList* head = (struct LinkedList*)malloc(sizeof(struct LinkedList));
+                            struct LinkedList* tail = (struct LinkedList*)malloc(sizeof(struct LinkedList));
+                            consume();
+                            tail->str = tokenPtr->token->str;
+                            head = tail;
+			    tail->next = NULL;
+                            if (symbolTableNode != NULL) {
+                                if (symbolTableNode->kind != QUEUE ||
+                                (symbolTableNode->kind == QUEUE && symbolTableNode->head->str == NULL)) {
+                                    printf("TYPE ERROR\n");
+                                    error();
+                                }
+                            }
+                            head->kind = STRING;
+                            tail->kind = STRING;
+                            if (doit) setQueue(root, id, head, tail, 1);
                             break;
                         }
                     }
@@ -1407,7 +1477,8 @@ uint64_t statement(struct Node* root, int doit) {
 		    	        struct LinkedList* current = getNode(root, id)->head;
                         printf("{");
                         while (current != NULL) {
-                            printf("%ld", current->data);
+                            if (current->str != NULL)  printf("%s", current->str);
+			    else printf("%ld", current->data);
                             current = current->next;
                             if (current != NULL) printf(" ");
                         }
@@ -1607,6 +1678,243 @@ char* stringifyKind(enum Kind kind) {
         case DOT: return "dot";
    }
 }
+void setKindAll(char* id, enum Kind structure_type, enum Kind data_type);
+
+int type_check(void) {
+    while (tokenPtr->token->kind != END) {
+        switch(peek()) {
+            case ID: {
+                char* id = getId();
+                struct Token* id_token = tokenPtr->token;
+                consume();
+                if (peek() == LBRACKET || peek() == INSERT || peek() == ADD) {
+                    int indexing = 0;
+                    if (peek() == LBRACKET) indexing = 1;
+                    if (id_token->structure_kind == NONE) {
+                        printf("UNDEFINED DATA STRUCTURE ACCESS\n");
+                        return 1;
+                    }
+                    consume();
+                    if (indexing) {
+                        type_checking = 0;
+                        uint64_t index = expression(root);
+                        type_checking = 1;
+                        if (peek() != RBRACKET) {
+                            printf("SYNTAX ERROR\n");
+                            return 1;
+                        }
+                        consume();
+                        /*
+                        if (peek() != EQ) {
+                            printf("SYNTAX ERROR\n");
+                            return 1;
+                        }
+                        */
+                        
+                        // Consume for equals sign
+                        consume();
+                        if (peek() == INT && id_token->type_kind != INT) {
+                            printf("TYPE ERROR 1 \n");
+                            return 1;
+                        }
+                        else if (peek() == STRING && id_token->type_kind != STRING) {
+                            printf("TYPE ERROR 2\n");
+                            return 1;
+                        } 
+                        else if (peek() == STRING && id_token->type_kind == STRING) {
+                            consume();
+                            break;
+                        }
+                        // expression
+                        else {
+                            type_check_kind = id_token->type_kind;
+                            uint64_t v = expression(root);
+                            if (type_error) return v;
+                        }
+                            
+                    }
+                    else if (peek() == INT && id_token->type_kind != INT) {
+                        printf("TYPE ERROR 3\n");
+                        return 1;
+                    }
+                    else if (peek() == STRING && id_token->type_kind != STRING) {
+                        printf("TYPE ERROR 4\n");
+                        return 1;
+                    }
+                    else if (peek() == STRING && id_token->type_kind == STRING) {
+                        consume();
+                        break;
+                    }
+                    // assume expression / ID
+                    else {
+                        type_check_kind = id_token->type_kind;
+                        uint64_t v = expression(root);
+                        if (type_error) return v;
+                    }
+                        
+                }
+                else if (peek() == REMOVE) {
+                    consume();
+                    if (id_token->structure_kind == QUEUE) {
+                        break;
+                    } 
+                    if (peek() == STRING) {
+                        printf("REMOVE SYNTAX ERROR\n");
+                        return 1;
+                    }
+                    else {
+                        type_checking = 0;
+                        expression(root);
+                        type_checking = 1;
+                    }
+                }
+                else if (peek() == PEEK) {
+                    consume();
+                    if (id_token->structure_kind == QUEUE) {
+                        break;
+                    } 
+                }
+                else {
+                    consume();
+                    if (peek() == ARRAY || peek() == ARRAYLIST || peek() == LINKEDLIST || peek() == QUEUE) {
+                        enum Kind structure_type = peek();
+                        if (id_token->structure_kind == NONE) {
+                            id_token->structure_kind = peek();
+                        }
+                        else {
+                            if (id_token->structure_kind != structure_type) {
+                                printf("VARIABLE ALREADY DEFINED WITH DIFFERENT STRUCTURE TYPE\n");
+                                return 1;
+                            }
+                        }
+                        consume();
+                        enum Kind data_type = peek();
+                        if (data_type == TYPE_INT) {
+                            data_type = INT;
+                        }
+                        if (data_type == TYPE_STRING) {
+                            data_type = STRING;
+                        }
+                        if (id_token->type_kind == NONE) {
+                            id_token->type_kind = peek();
+                        }
+                        else {
+                            if (id_token->type_kind != data_type) {
+                                printf("VARIABLE ALREADY DEFINED WITH DIFFERENT DATA TYPE\n");
+                                return 1;
+                            }
+                        }
+                        setKindAll(id, structure_type, data_type);
+                        consume();
+                            
+                    }
+                    else if (peek() == INT || peek() == STRING) {
+                        enum Kind data_type = peek();
+                        if (id_token->type_kind == NONE) {
+                            id_token->type_kind == peek();
+                        }
+                        else {
+                            if (id_token->type_kind != data_type) {
+                                printf("VARIABLE ALREADY DEFINED WITH DIFFERENT DATA TYPE\n");
+                                return 1;
+                            }
+                            if (id_token->structure_kind != NONE) {
+                                printf("VARIABLE ALREADY DEFINED AS STRUCTURE\n");
+                                return 1;
+                            }
+                        }
+                        setKindAll(id, NONE, data_type);
+                        consume();
+                    }
+                    else if (peek() == ID) {
+                        enum Kind data_type = tokenPtr->token->type_kind;
+                        enum Kind structure_type = tokenPtr->token->structure_kind;
+                        consume();
+                        if (peek() == LBRACKET) {
+                            consume();
+                            type_checking = 0;
+                            expression(root);
+                            type_checking = 1;
+                            if (peek() != RBRACKET) {
+                                printf("SYNTAX ERROR\n");
+                            }
+                        }
+                        if (id_token->type_kind != NONE && id_token->type_kind != data_type) {
+                            printf("TYPE ERROR 7\n");
+                            return 1;
+                        }
+                        else {
+                            id_token->type_kind = data_type;
+                        }
+                        setKindAll(id, NONE, data_type);
+                        consume();
+                    }
+                    // Expression here
+                    else {
+                        type_check_kind = (id_token->type_kind);
+                        uint64_t v = expression(root);
+                        if (type_error) return 1;  
+                    }
+                
+                }
+                break;
+            }
+            case IF: {
+                consume();
+                type_checking = 0;
+                expression(root);
+                type_checking = 1;
+                break;
+            }
+            case WHILE: {
+                consume();
+                type_checking = 0;
+                expression(root);
+                type_checking = 1;
+                break;
+            }
+            case PRINT: {
+                consume();
+                if (peek() == ID) {
+                    consume();
+                }
+                else {
+                    type_checking = 0;
+                    expression(root);
+                type_checking = 1;
+                }
+            break;
+            }
+           default: {
+                consume();
+            }
+        }
+    }
+    return 0;
+                
+}
+
+void setKindAll(char* id, enum Kind structure_type, enum Kind data_type) {
+    struct LinkedNode* saved = tokenPtr;
+    while (tokenPtr->token->kind != END) {
+        if (tokenPtr->token->kind == ID)
+            {
+                char* id_current = getId();
+                if (strcmp(id_current, id) == 0) {
+                    tokenPtr->token->structure_kind = structure_type;
+                    tokenPtr->token->type_kind = data_type;
+                }
+            }
+            consume();
+    }
+    tokenPtr = saved;
+    
+}
+    
+                
+            
+
+    
 
 int main(int argc, char* argv[]) {
     increaseStackSize();
@@ -1624,7 +1932,14 @@ int main(int argc, char* argv[]) {
     }
     while (tokenPtr->token->kind != END);
     */
-
+    int stop_flag = 0;
+    type_checking = 1;
+    stop_flag = type_check();
+    if (stop_flag) {
+        return 0;
+    }
+    type_checking = 0;
+    tokenPtr = head;
     interpret(prog);
 
     return 0;
