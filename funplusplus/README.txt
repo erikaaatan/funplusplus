@@ -6,6 +6,9 @@ PROJECT SYNTAX
 GENERAL NOTES
 <type> always refers to the options "int" and "string"
 
+CREATING VARIABLES
+x = <type> <value>
+
 ARRAYS
 x = array <type> <# of elements> <comma separated elements>
 x[<index>] (this returns the element at the given index)
