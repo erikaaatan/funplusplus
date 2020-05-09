@@ -1707,9 +1707,6 @@ int type_check(void) {
                                 printf("SYNTAX ERROR\n");
                             }
                         }
-                        else if (peek() == REMOVE || peek() == PEEK) {
-                            consume();
-                        }
                         if (id_token->type_kind != NONE && id_token->type_kind != data_type) {
                             printf("TYPE ERROR 7\n");
                             return 1;
