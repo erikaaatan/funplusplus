@@ -357,9 +357,9 @@ void removeQueue(struct Node* symbolTableNode) {
         error(); 
     }
 
+    symbolTableNode->numElements -=1;
     if (symbolTableNode->numElements == 1) {
         symbolTableNode->head = symbolTableNode->head->next;
-        symbolTableNode->numElements -=1;
         return; 
     }
 
