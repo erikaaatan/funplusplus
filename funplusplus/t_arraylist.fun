@@ -17,11 +17,12 @@ while (stop == 0 == 0)
     stop = stop - 1
 }
 print x
-x = arraylist string 2 "hello", "world"
+list = arraylist string 2 "hello", "world"
 t = "there"
-x insert t
-x remove 0
-print x
+list insert t
+print list
+list remove 0
+print list
 
 
 
