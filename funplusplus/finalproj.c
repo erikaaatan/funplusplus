@@ -268,6 +268,7 @@ char* intToString(uint64_t num)
 // ---------- Trie Node ------------
 struct Node {
     enum Kind kind;
+    struct Node *objSymbolTable;
     uint64_t data;
     struct LinkedList* head;
     struct LinkedList* tail;
@@ -278,11 +279,6 @@ struct Node {
     char* ptr;
     char* str;
     int end;
-    struct Node* children[36];
-};
-
-struct ObjectNode {
-    struct Node* root; // its own symbol table
     struct Node* children[36];
 };
 
@@ -521,6 +517,51 @@ void set_str(struct Node* root, char *id, char *str) {
 void set_obj(struct Node* root, char*id) {
     struct Node* current = getNewNode(root, id);
     current->kind = OBJECT;
+}
+
+struct Node* copy(struct Node* copyNode, struct Node* originalNode) {
+    copyNode->objSymbolTable = (originalNode->objSymbolTable != NULL) ? originalNode->objSymbolTable : NULL;
+    copyNode->data = originalNode->data;
+    copyNode->head = (originalNode->head != NULL) ? originalNode->head : NULL;
+    copyNode->tail = (originalNode->tail != NULL) ? originalNode->tail : NULL;
+    copyNode->arraylist = originalNode->arraylist != NULL ? originalNode->arraylist : NULL;
+    copyNode->array = originalNode->array != NULL ? originalNode->array : NULL;
+    copyNode->array_str = originalNode->array_str != NULL ? originalNode->array_str : NULL;
+    copyNode->numElements = originalNode->numElements;
+    copyNode->ptr = originalNode->ptr != NULL ? originalNode->ptr : NULL;
+    copyNode->str = originalNode->str != NULL ? originalNode->str : NULL;
+    copyNode->end = originalNode->end;
+    for (int i = 0; i < 36; i++) {
+        copyNode->children[i] = originalNode->children[i] != NULL ? originalNode->children[i] : NULL;
+    }
+}
+
+/*
+void copyTable(struct Node* copyNode, struct Node* template) {
+    copy(copyNode, template);
+    for (int i = 0; i < 36; i++) {
+        if (template->children[i] != NULL) {
+            copyNode->children[i] = (struct Node*) malloc(sizeof(struct Node));
+            copyTable(copyNode->children[i], template->children[i]);
+        }
+    }
+}
+*/
+
+void set_newObj(struct Node* root, char* id, char* objName) {
+    struct Node* current = getNewNode(root, id);
+    current->kind = OBJECT;
+    current->objSymbolTable = (struct Node*)malloc(sizeof(struct Node));
+
+    // copy over the symbol table from the template
+    copy(current->objSymbolTable, getNode(root, objName)->objSymbolTable);
+}
+
+struct Node* initializeObject(struct Node* root, char* id) {
+    struct Node* objNode = getNode(root, id);
+    objNode->objSymbolTable = newNode();
+    // return root of new symbol table for this object
+    return objNode->objSymbolTable; 
 }
 
 /* The current token */
@@ -803,8 +844,8 @@ uint64_t getInt(void) {
 }
 
 uint64_t expression(void);
-void seq(int doit);
-uint64_t statement(int doit);
+void seq(struct Node* root, int doit);
+uint64_t statement(struct Node* root, int doit);
 
 /* handle id, literals, and (...) */
 uint64_t e1(void) {
@@ -871,7 +912,7 @@ uint64_t e1(void) {
         consume();
         uint64_t v = tokenPtr->token->index;
         // don't execute this function
-        statement(0);
+        statement(root, 0);
         // hash of tokenPtr
         return v;
     }
@@ -941,7 +982,7 @@ void moveTokenPtrToIndex(int index) {
     }
 }
 
-uint64_t statement(int doit) {
+uint64_t statement(struct Node* root, int doit) {
     switch(peek()) {
 	    case ID: { 
             char *id = getId();
@@ -1226,6 +1267,10 @@ uint64_t statement(int doit) {
                     if (doit) set_str(root, id, str);
                     consume();
                 }
+                else if (peek() == OBJECT) {
+                    if (doit) set_newObj(root, id, getId()); 
+                    consume();
+                }
                 else {
                     uint64_t v = expression();
 		            if (doit) set(root, id, v); 
@@ -1233,9 +1278,18 @@ uint64_t statement(int doit) {
             }
             return 1;
         }
+        case CLASS: {
+            consume();
+            char* id = getId();
+            consume(); // consume object id
+            consume(); // consume =
+            struct Node *objSymbolTableRoot = initializeObject(root, id);
+            statement(objSymbolTableRoot, doit); 
+            return 1;
+        }
         case LBRACE: {
             consume();
-            seq(doit);
+            seq(root, doit);
             if (peek() != RBRACE) {
                 printf("MISSING RIGHT BRACE\n");
                 error();
@@ -1247,18 +1301,18 @@ uint64_t statement(int doit) {
             consume();
             uint64_t v = expression();
             if (v) {
-                statement(doit);
+                statement(root, doit);
                 if (peek() == ELSE) {
                     consume();
-                    statement(0);
+                    statement(root, 0);
                 }
             }
             else {
                 // skip the next statement
-                statement(0);
+                statement(root, 0);
                 if (peek() == ELSE) {
                     consume();
-                    statement(doit);
+                    statement(root, doit);
                 }
             }
             return 1;
@@ -1268,12 +1322,12 @@ uint64_t statement(int doit) {
             int expressionIndex = tokenPtr->token->index;
             uint64_t v = expression();
             while (v && doit) {
-                statement(doit);
+                statement(root, doit);
                 // the statement was evaluated to true
                 moveTokenPtrToIndex(expressionIndex);
                 v = expression();
             }
-            statement(0);
+            statement(root, 0);
             return 1;
         }
         case FUN: {
@@ -1283,7 +1337,7 @@ uint64_t statement(int doit) {
             int returnIndex = tokenPtr->token->index;
             // go to the start of the function
             moveTokenPtrToIndex(get(root, funId));
-            statement(doit);
+            statement(root, doit);
             // move it back to where it was before
             moveTokenPtrToIndex(returnIndex);
             return 1;
@@ -1297,21 +1351,30 @@ uint64_t statement(int doit) {
                 else {
                     char* id = getId(); 
 
+                    consume();
                     struct Node* symbolTableNode = getNode(root, id);
 
                     if (symbolTableNode == NULL) {
                         // the id is not in the symbol table yet
                         printf("0\n");
-                        consume();
                     }
                     // Print INT ID
                     else if (symbolTableNode->kind == INT) {
                         printf("%ld\n", get(root, id));
-			            consume(); 
 		            }
+                    else if (symbolTableNode->kind == OBJECT) {
+                        consume(); // consume the dot
+                        if (peek() != ID) {
+                            printf("INVALID FIELD\n");
+                            error();
+                        }
+                        struct Node* objRoot = symbolTableNode->objSymbolTable;
+                        struct Node* objectNode = getNode(objRoot, getId());
+                        if (objectNode->kind == INT) printf("%ld\n", objectNode->data);
+                        else if (objectNode->kind == STRING) printf("%s\n", objectNode->str);
+                    }
 		            else if (symbolTableNode->kind == STRING) {
                         printf("%s\n", symbolTableNode->str);
-                        consume();
                     }
                     else if (symbolTableNode->kind == LINKEDLIST) {
                         struct LinkedList* current = getNode(root, id)->head;
@@ -1323,7 +1386,6 @@ uint64_t statement(int doit) {
                             if (current != NULL) printf(" ");
                         }
                         printf("}\n");
-                        consume();
                     }
 		            else if (symbolTableNode->kind == QUEUE) {
 		    	        struct LinkedList* current = getNode(root, id)->head;
@@ -1334,7 +1396,6 @@ uint64_t statement(int doit) {
                             if (current != NULL) printf(" ");
                         }
                         printf("}\n");
-                        consume();
 		            }
                     // ID is an array/arraylist
                     else {
@@ -1376,7 +1437,6 @@ uint64_t statement(int doit) {
                                 index++;
                             }
                         }
-                        consume();
                     }
                 }
             }
@@ -1392,12 +1452,12 @@ uint64_t statement(int doit) {
     }
 }
 
-void seq(int doit) {
-    while (statement(doit)) ;
+void seq(struct Node* root, int doit) {
+    while (statement(root, doit)) ;
 }
 
 void program(void) {
-    seq(1);
+    seq(root, 1);
     if (peek() != END) {
         printf("UNDEFINED END OF PROGRAM\n");
         error();
@@ -1541,11 +1601,13 @@ int main(int argc, char* argv[]) {
 
     pretokenize();
 
+    /*
     do {
         printf("%s\n", stringifyKind(tokenPtr->token->kind));
         consume();
     }
     while (tokenPtr->token->kind != END);
+    */
 
     interpret(prog);
 
