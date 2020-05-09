@@ -99,10 +99,12 @@ char **resizeDown_str(char **array_str, uint64_t oldSize);
 
  void insertArrayList(ArrayList* list, uint64_t item, char *str_item)
  {
+    uint64_t oldSize = list->size;
+    uint64_t newSize = list->size + 1;
     if (list->kind == INT) {
-        if (list->size >= (list->arraySize) / 2)
+        if (newSize >= (list->arraySize) / 2)
         {
-            list->array = resizeUp(list->array, list->size);
+            list->array = resizeUp(list->array, list->arraySize);
             list->arraySize *= 2;
         }
         list->array[list->size] = item;
@@ -110,9 +112,9 @@ char **resizeDown_str(char **array_str, uint64_t oldSize);
         //printArray(list->array, list->size);
      }
      else if (list->kind == STRING) {
-        if (list->size >= (list->arraySize) / 2)
+        if (newSize >= (list->arraySize) / 2)
         {
-            list->array_str = resizeUp_str(list->array_str, list->size);
+            list->array_str = resizeUp_str(list->array_str, list->arraySize);
             list->arraySize *= 2;
         }
         list->array_str[list->size] = str_item;
@@ -145,7 +147,7 @@ char **resizeDown_str(char **array_str, uint64_t oldSize);
 
         if (newSize <= ((list->arraySize) / 2))
         {
-            list->array = resizeDown(list->array, list->size);
+            list->array = resizeDown(list->array, list->arraySize);
             list->arraySize /= 2;
         }
     }
@@ -160,7 +162,7 @@ char **resizeDown_str(char **array_str, uint64_t oldSize);
 
         if (newSize <= ((list->arraySize) / 2))
         {
-            list->array_str = resizeDown_str(list->array_str, list->size);
+            list->array_str = resizeDown_str(list->array_str, list->arraySize);
             list->arraySize /= 2;
         }
     }
@@ -180,7 +182,6 @@ uint64_t* resizeUp(uint64_t* array, uint64_t oldSize) {
     {
         newArray[i] = array[i];
     }
-    //printArray(newArray, newSize);
     free(array);
     return newArray;
 }
@@ -1088,6 +1089,7 @@ uint64_t statement(int doit) {
                         case ARRAYLIST: {
                             ArrayList* newArrayList = new_ArrayList();
                             newArrayList->size = numElements;
+                            newArrayList->arraySize = numElements;
                             
                             newArrayList->array = (uint64_t*) malloc(numElements * sizeof(uint64_t));
                             newArrayList->array_str = NULL;
@@ -1654,6 +1656,10 @@ int type_check(void) {
                                 printf("VARIABLE ALREADY DEFINED WITH DIFFERENT DATA TYPE\n");
                                 return 1;
                             }
+                            if (id_token->structure_kind != NONE) {
+                                printf("VARIABLE ALREADY DEFINED AS STRUCTURE\n");
+                                return 1;
+                            }
                         }
                         setKindAll(id, NONE, data_type);
                         consume();
@@ -1690,7 +1696,6 @@ int type_check(void) {
                         uint64_t v = expression();
                         if (type_error) return 1;  
                     }
-                        
                 
                 }
                 break;
