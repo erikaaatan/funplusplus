@@ -349,14 +349,7 @@ void removeQueue(struct Node* symbolTableNode) {
     struct LinkedList* previous = symbolTableNode->head;
     struct LinkedList* current = previous->next;
 
-    while (current != symbolTableNode->tail) {
-        previous = current; 
-	    current = current->next;
-    }
-
-    previous->next = current->next;
-    symbolTableNode->tail = previous;
-    symbolTableNode->numElements -= 1;
+    symbolTableNode->head = current;
 }
 
 //QUEUE Peek 
@@ -367,7 +360,7 @@ uint64_t peekQueue(struct Node* symbolTableNode) {
         error(); 
     }
 
-    return symbolTableNode->tail->data;
+    return symbolTableNode->head->data;
 }
 
 struct Node* newNode(void) {
@@ -434,14 +427,7 @@ void setLinkedList(char *id, struct LinkedList* head, struct LinkedList* tail, i
 }
 
 void setQueue(char *id, struct LinkedList* head, struct LinkedList* tail, int numElements) {
-    struct Node* current = root;
-    for (int i = 0; i < strlen(id); i++) {
-        int pos = getAlNumPos(id[i]);
-        if (current->children[pos] == NULL) {
-            current->children[pos] = newNode();
-        }
-        current = current->children[pos];
-    }
+    struct Node* current = getNewNode(id);
     current->head = head;
     current->tail = tail;
     current->end = 1;
@@ -989,9 +975,22 @@ uint64_t statement(int doit) {
                     }
                 }
                 else if (peek() == ADD) {
+		    //printf("trying to add");
                     consume();
-                    uint64_t item = expression(); 
-                    if (doit) insertLinkedList(symbolTableNode, item, NULL);
+                    uint64_t item;
+		    char *item_str = NULL;
+
+		    if (peek() == STRING)
+		    {
+		       item_str = tokenPtr->token->str;
+		       consume();
+		    }
+		    else
+		    {
+		       item = expression();
+		    }
+
+                    if (doit) insertLinkedList(symbolTableNode, item, item_str);
                 }
                 // CASE: ArrayList, LinkedList, Queue Remove
                 else if (peek() == REMOVE) {
@@ -1023,14 +1022,13 @@ uint64_t statement(int doit) {
             consume();
 
             if (peek() == ARRAY || peek() == LINKEDLIST || peek() == ARRAYLIST || peek() == QUEUE) {
-		        enum Kind kind = peek();
+		enum Kind kind = peek();
                 consume();
 
-		        if (peek() == TYPE_INT) {
+		if (peek() == TYPE_INT) {
                     consume();
                     int numElements = tokenPtr->token->value;
                     struct Node* symbolTableNode = getNode(id);
-
                     switch (kind) {
                         case ARRAY: {
                             uint64_t* newArray = (uint64_t*) malloc(numElements * sizeof(uint64_t));
@@ -1106,15 +1104,27 @@ uint64_t statement(int doit) {
                             if (doit) setArrayList(id, newArrayList, numElements);
                             break;
                         }
-			            case QUEUE: {
-			                struct LinkedList* head = (struct LinkedList*)malloc(sizeof(struct LinkedList));
+			case QUEUE: {
+			    struct LinkedList* head = (struct LinkedList*)malloc(sizeof(struct LinkedList));
                             struct LinkedList* tail = (struct LinkedList*)malloc(sizeof(struct LinkedList));
+                            consume();
                             tail->data = tokenPtr->token->value;
                             head = tail;
-                            consume();
+                            tail->next = NULL;
+                            
+			    if (symbolTableNode != NULL) {
+                                if (symbolTableNode->kind != QUEUE ||
+                                (symbolTableNode->kind == QUEUE && symbolTableNode->head->data == (uint64_t)NULL)) {
+                                printf("TYPE ERROR\n");
+                                error();
+                            }
+                            }
+                            head->kind = INT;
+                            tail->kind = INT;
+
                             if (doit) setQueue(id, head, tail, 1);
-                            break;	    
-			            }
+			    break;
+			}
                    }
                 }
                 else if (peek() == TYPE_STRING) {
@@ -1198,6 +1208,25 @@ uint64_t statement(int doit) {
                             if (doit) setLinkedList(id, head, tail, numElements);
                             break;
                         }
+			case QUEUE: {
+                            struct LinkedList* head = (struct LinkedList*)malloc(sizeof(struct LinkedList));
+                            struct LinkedList* tail = (struct LinkedList*)malloc(sizeof(struct LinkedList));
+                            consume();
+                            tail->str = tokenPtr->token->str;
+                            head = tail;
+			    tail->next = NULL;
+                            if (symbolTableNode != NULL) {
+                                if (symbolTableNode->kind != QUEUE ||
+                                (symbolTableNode->kind == QUEUE && symbolTableNode->head->str == NULL)) {
+                                    printf("TYPE ERROR\n");
+                                    error();
+                                }
+                            }
+                            head->kind = STRING;
+                            tail->kind = STRING;
+                            if (doit) setQueue(id, head, tail, 1);
+                            break;
+                        }
                     }
                 }
             }
@@ -1211,7 +1240,7 @@ uint64_t statement(int doit) {
                 else {
                     uint64_t v = expression();
 		            if (doit) set(id, v); 
-		        }
+		}
             }
             return 1;
         }
@@ -1307,11 +1336,12 @@ uint64_t statement(int doit) {
                         printf("}\n");
                         consume();
                     }
-		            else if (symbolTableNode->kind == QUEUE) {
-		    	        struct LinkedList* current = getNode(id)->head;
+		    else if (symbolTableNode->kind == QUEUE) {
+		    	struct LinkedList* current = getNode(id)->head;
                         printf("{");
                         while (current != NULL) {
-                            printf("%ld", current->data);
+                            if (current->str != NULL)  printf("%s", current->str);
+			    else printf("%ld", current->data);
                             current = current->next;
                             if (current != NULL) printf(" ");
                         }
