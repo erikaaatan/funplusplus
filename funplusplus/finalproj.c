@@ -19,6 +19,7 @@ struct LinkedNode* tokenPtr = NULL;
 int type_checking = 0;
 int type_error = 0;
 int param = 0;
+int doit_global = 0;
 
 /* Kinds of tokens */
 enum Kind {
@@ -65,9 +66,11 @@ enum Kind type_check_kind;
 typedef struct Function {
     int num_params;
     char **parameters;
+    struct Token **param_tokens;
 } Function;
     
 void setAllDec(char *id, Function* func, int index);
+void setKindAll(char* id, enum Kind structure_type, enum Kind data_type);
 
 Function *func_global;
 /* information about a token */
@@ -830,14 +833,14 @@ uint64_t e1(void) {
             consume();
 
             // ONly for int array / arraylists
-            if (symbolTableNode->kind == ARRAY) {
+            if (symbolTableNode != NULL && symbolTableNode->kind == ARRAY) {
                 // String array
                 if (index >= 0 && index < symbolTableNode->numElements) {
                     //printf("index: %ld\n", index);
                     return symbolTableNode->array[index];
                 }    
             }
-            else if (symbolTableNode->kind == ARRAYLIST && symbolTableNode->arraylist->kind == INT) {
+            else if (symbolTableNode != NULL && symbolTableNode->kind == ARRAYLIST && symbolTableNode->arraylist->kind == INT) {
                 if (index >= 0 && index < symbolTableNode->arraylist->size) {
                     //printf("index: %ld\n", index);
                     return symbolTableNode->arraylist->array[index];
@@ -853,39 +856,62 @@ uint64_t e1(void) {
     else if (peek() == DEC) {
         struct Token* savedFunc = tokenPtr->token;
         consume();
-        // Gets num args
-        if (peek() == LEFT && !type_checking) {
-            savedFunc->func = (Function *)malloc(sizeof(Function));
-            savedFunc->func->num_params = 0;
-            consume();
-            struct LinkedNode* saved = tokenPtr;
+        if (peek() == LEFT) {
             while (peek() != RIGHT) {
-                if (peek() == ID) {
-                    savedFunc->func->num_params++;
-                }
-                consume();
-            }
-            int num_params_current = savedFunc->func->num_params;
-            savedFunc->func->parameters = (char **)malloc(num_params_current * sizeof(char *));
-            tokenPtr = saved; 
-            int index = 0;
-            while (peek() != RIGHT) {
-                if (peek() == ID) {
-                    char* id = getId();
-                    savedFunc->func->parameters[index] = id;
-                    index++;
-                }
                 consume();
             }
             consume();
-            param = 1;
-            func_global = savedFunc->func;
-            
-                
         }
+        
+        // Gets num args
+/*
+       if (peek() == LEFT && savedFunc->func == NULL) {
+           savedFunc->func = (Function *)malloc(sizeof(Function));
+           savedFunc->func->num_params = 0;
+           consume();
+           struct LinkedNode* saved = tokenPtr;
+           while (peek() != RIGHT) {
+               if (peek() == ID) {
+                   savedFunc->func->num_params++;
+               }
+               consume();
+           }
+           int num_params_current = savedFunc->func->num_params;
+           savedFunc->func->parameters = (char **)malloc(num_params_current * sizeof(char *));
+           savedFunc->func->param_tokens = (struct Token **)malloc(num_params_current * sizeof(struct Token *));
+           tokenPtr = saved; 
+           int index = 0;
+           while (peek() != RIGHT) {
+               enum Kind arg_type_structure;
+               enum Kind arg_type;
+               if (peek() == ARRAY || peek() == ARRAYLIST || peek() == LINKEDLIST || peek() == QUEUE) {
+                   arg_type_structure = peek();
+               }
+               else if (peek() == TYPE_INT || peek() == TYPE_STRING) {
+                   if (peek() == TYPE_INT) arg_type = INT;
+                   else arg_type = STRING;
+               }
+               else if (peek() == ID) {
+                   char* id = getId();
+                   savedFunc->func->parameters[index] = id;
+                   tokenPtr->token->structure_kind = arg_type_structure;
+                   tokenPtr->token->type_kind = arg_type;
+                   savedFunc->func->param_tokens[index] = tokenPtr->token;
+                   setKindAll(id, arg_type_structure, arg_type);
+                   index++;
+               }
+               consume();
+           }
+           consume();
+           func_global = savedFunc->func;
+           
+               
+       }
+*/
         uint64_t v = tokenPtr->token->index;
         // don't execute this function
         statement(0);
+        //param = 1;
         // hash of tokenPtr
         return v;
     }
@@ -1289,9 +1315,12 @@ uint64_t statement(int doit) {
                     consume();
                 }
                 else {
+                    if (!doit) doit_global = 0;
                     uint64_t v = expression();
+                    doit_global = 1;
 		            if (doit) set(id, v); 
-                    if (param) setAllDec(id, func_global, v);
+                    if (param) 
+                        setAllDec(id, func_global, v);
                     param = 0;
 		            }
             }
@@ -1365,6 +1394,7 @@ uint64_t statement(int doit) {
                                     else {
                                         current->array_str = id_node->array_str;
                                     }
+                                    current->numElements = id_node->numElements;
                                 break;
                                 }
                                 case ARRAYLIST: {
@@ -1652,7 +1682,6 @@ char* stringifyKind(enum Kind kind) {
 	    case ADD: return "add";       
    }
 }
-void setKindAll(char* id, enum Kind structure_type, enum Kind data_type);
 
 int type_check(void) {
     while (tokenPtr->token->kind != END) {
@@ -1824,15 +1853,77 @@ int type_check(void) {
                         consume();
                     }
                     else if (peek() == DEC) {
-                        consume();
-                        if (peek() == LEFT) {
-                            while (peek() != RIGHT) {
-                                consume();
-                            }
-                            consume();
+        struct Token* savedFunc = tokenPtr->token;
+        consume();
+       if (peek() == LEFT && savedFunc->func == NULL) {
+           savedFunc->func = (Function *)malloc(sizeof(Function));
+           savedFunc->func->num_params = 0;
+           consume();
+           struct LinkedNode* saved = tokenPtr;
+           while (peek() != RIGHT) {
+               if (peek() == ID) {
+                   savedFunc->func->num_params++;
+               }
+               consume();
+           }
+           int num_params_current = savedFunc->func->num_params;
+           savedFunc->func->parameters = (char **)malloc(num_params_current * sizeof(char *));
+           savedFunc->func->param_tokens = (struct Token **)malloc(num_params_current * sizeof(struct Token *));
+           tokenPtr = saved; 
+           int index = 0;
+           while (peek() != RIGHT) {
+               enum Kind arg_type_structure;
+               enum Kind arg_type;
+               if (peek() == ARRAY || peek() == ARRAYLIST || peek() == LINKEDLIST || peek() == QUEUE) {
+                   arg_type_structure = peek();
+               }
+               else if (peek() == TYPE_INT || peek() == TYPE_STRING) {
+                   if (peek() == TYPE_INT) arg_type = INT;
+                   else arg_type = STRING;
+               }
+               else if (peek() == ID) {
+                   char* id = getId();
+                   savedFunc->func->parameters[index] = id;
+                   tokenPtr->token->structure_kind = arg_type_structure;
+                   tokenPtr->token->type_kind = arg_type;
+                   savedFunc->func->param_tokens[index] = tokenPtr->token;
+                   setKindAll(id, arg_type_structure, arg_type);
+                   index++;
+               }
+               consume();
+           }
+           consume();
+           func_global = savedFunc->func;
+            uint64_t index_ = 0;
+           setAllDec(id, savedFunc->func, index_);
+           
+               
+       }
+                    /*
+                       if (peek() == LEFT) {
+                           consume();
+                           while (peek() != RIGHT) {   
+                               enum Kind arg_type_structure;
+                               enum Kind arg_type;
+                               if (peek() == ARRAY || peek() == ARRAYLIST || peek() ==  LINKEDLIST || peek() == QUEUE) {
+                                   arg_type_structure = peek();
+                               }
+                               if (peek() == TYPE_INT || peek() == TYPE_STRING) {
+                                   if (peek() == TYPE_INT) {
+                                       arg_type = INT;
+                                   }
+                                   else arg_type = STRING;
+                               }
+                               if (peek() == ID) {
+                                   setKindAll(getId(), arg_type_structure, arg_type);
+                               }
+                               consume();
+                           }
+                           consume();
                     }
-                    }
-                    // Expression here
+                    */
+                }
+                    //Expression here
                     else {
                         type_check_kind = (id_token->type_kind);
                         uint64_t v = expression();
@@ -1869,14 +1960,35 @@ int type_check(void) {
             break;
             }
             case FUN: {
+                Function* func = tokenPtr->token->func;
                 consume();
                 // Type Check here TODO
+                int index = 0;
                 while (peek() != RIGHT) {
+                    if (peek() == ID) {
+                        if (index >= func->num_params) {
+                            printf("TOO MANY PARAMETERS\n");
+                            return 1;
+                        }
+                        if (tokenPtr->token->structure_kind != func->param_tokens[index]->structure_kind) {
+                            printf("PARAMETER TYPE ERROR\n");
+                            return 1;
+                        }
+                        if (tokenPtr->token->type_kind != func->param_tokens[index]->type_kind) {
+                            printf("PARAMETER TYPE ERROR\n");
+                            return 1;
+                        }
+                        index++;
+                    }
                     consume();
                 }
+                if (index != func->num_params) {
+                    printf("NOT ENOUGH PARAMS\n");
+                    return 1;
+                }
                 consume();
-            }
-            break;
+                break;
+                }
            default: {
                 consume();
             }
@@ -1914,7 +2026,8 @@ void setAllDec(char *id, Function* func, int index) {
                 }
                 }
                 else {
-                    if (index == get(getFunId())) {
+                    char *funId = getFunId();
+                    if (strcmp(funId, id) == 0) {
                         tokenPtr->token->func = func;
                     }
                 }
