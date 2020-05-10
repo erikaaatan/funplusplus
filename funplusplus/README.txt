@@ -4,6 +4,8 @@ data structures, a string type, and generally improved language constructs. Fun+
 sorting algorithms, data structures algorithms, and storage of large amounts of data.
 We had lots of fun working on Fun++!
 
+GIT REPO LINK: https://github.com/erikaaatan/funplusplus.git
+
 PROJECT SYNTAX 
 GENERAL NOTES
 <type> always refers to the options "int" and "string"
@@ -46,13 +48,15 @@ STATIC TYPE CHECKING
     - Variables cannot be redefined as different types
     - Values added to data structures cannot have a different type from the data structure
 - Function arguments have yet to be added, so they are not strong and statically typed yet
+    - UPDATE: function arguments are now statically type-checked!!
 - Static type checking is done before interpreting, and it gives error messages for type
     and syntax errors
 
 FUNCTION ARGUMENTS
-x = fun (<type> parameter... (must be an ID variable))
-- not statically and strongly typed yet
+Function Declaration: x = fun (<optional data structure type> <type (int or string)> <parameter ID variable>, ...)
+Function Call: x(<parameter ID>, ... )
 - supports basic parameter types including data structures, ints, and strings
+
 
 STRING RULES
 - x = "string"
